@@ -1,0 +1,93 @@
+# Workout Tracker — GitHub Pages Setup Guide
+
+Follow these steps once. After that, your app lives at a permanent HTTPS URL,
+works fully offline, and your data persists forever in the browser's localStorage
+(never evicted, because the app has a real origin).
+
+---
+
+## Step 1 — Create a free GitHub account (skip if you have one)
+
+Go to https://github.com and sign up. It's free.
+
+---
+
+## Step 2 — Create a new repository
+
+1. Click the "+" icon → "New repository"
+2. Name it exactly:  workout-tracker
+3. Set it to **Public**
+4. Do NOT tick "Add a README"
+5. Click **Create repository**
+
+---
+
+## Step 3 — Upload the files
+
+On the empty repository page, click **"uploading an existing file"** (or drag-and-drop).
+
+Upload ALL of these files (they are in the ZIP you downloaded):
+  - index.html
+  - sw.js
+  - manifest.json
+  - icon-192.png
+  - icon-512.png
+
+Click **Commit changes**.
+
+---
+
+## Step 4 — Enable GitHub Pages
+
+1. Go to your repository → **Settings** tab
+2. Scroll to **Pages** in the left sidebar
+3. Under "Branch", select **main** and folder **/ (root)**
+4. Click **Save**
+
+GitHub will show: "Your site is live at https://YOUR-USERNAME.github.io/workout-tracker/"
+
+This takes about 1–2 minutes the first time.
+
+---
+
+## Step 5 — Add to iPhone Home Screen
+
+1. Open Safari on your iPhone
+2. Go to:  https://YOUR-USERNAME.github.io/workout-tracker/
+3. Tap the **Share** button (box with arrow pointing up)
+4. Tap **"Add to Home Screen"**
+5. Tap **Add**
+
+The app icon will appear on your home screen. Open it — it will look and feel
+like a native app (no browser UI, full screen).
+
+---
+
+## How data persistence works now
+
+- Your workout data is stored in the browser's localStorage for that URL
+- Because it has a real HTTPS origin (github.io), Safari's 7-day eviction
+  policy does NOT apply — data persists indefinitely
+- The Service Worker (sw.js) caches the app so it loads instantly even with
+  no internet connection
+- Your data lives on your iPhone. It does not go to any server.
+
+---
+
+## Updating the app in future
+
+If you get an updated index.html:
+1. Go to your GitHub repository
+2. Click on index.html → click the pencil icon (Edit) → or drag the new file
+3. Commit — the live site updates within minutes
+4. On your iPhone, open the app once with internet so the Service Worker
+   picks up the new version
+
+---
+
+## Backup recommendation
+
+Even though data now persists reliably, it's still on one device.
+Use the app's built-in **Backup** button regularly and save the text
+somewhere (Notes app, email to yourself, etc.) to guard against
+phone loss or factory reset.
