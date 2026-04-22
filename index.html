@@ -1752,6 +1752,13 @@ function renderProgramList(){
       loadBtn.onclick = () => pgSwitch(p.id);
       btnWrap.appendChild(loadBtn);
     }
+    const clrBtn = document.createElement('button');
+    clrBtn.className = 'timer-btn';
+    clrBtn.style.color = 'var(--accent)';
+    clrBtn.style.borderColor = 'rgba(200,241,53,.3)';
+    clrBtn.textContent = 'Clear';
+    clrBtn.onclick = () => pgClearData(p.id, p.name);
+    btnWrap.appendChild(clrBtn);
     const delBtn = document.createElement('button');
     delBtn.className = 'timer-btn';
     delBtn.style.color = 'var(--red)';
@@ -1805,6 +1812,24 @@ function pgSwitch(id){
   pgUpdateBtn(target.name);
   closeModal('programModal');
   render();
+}
+
+function pgClearData(id, name){
+  if(!confirm(`Clear all workout history for "${name}"? This cannot be undone.`)) return;
+  // Remove all localStorage keys that belong to this program
+  const prefix = `wt_${id}_`;
+  const bwPrefix = `wt_bw_${id}_`;
+  const notesPrefix = `wt_notes_${id}_`;
+  const toRemove = [];
+  for(let i = 0; i < localStorage.length; i++){
+    const k = localStorage.key(i);
+    if(k && (k.startsWith(prefix) || k.startsWith(bwPrefix) || k.startsWith(notesPrefix))){
+      toRemove.push(k);
+    }
+  }
+  toRemove.forEach(k => localStorage.removeItem(k));
+  showToast(`Cleared data for "${name}".`);
+  if(pgActiveId() === id) render();
 }
 
 function pgDelete(id){
