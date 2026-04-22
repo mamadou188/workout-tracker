@@ -1,5 +1,5 @@
 // ── Workout Tracker Service Worker ───────────────────────────────────────────
-const CACHE_NAME = 'workout-tracker-v3';
+const CACHE_NAME = 'workout-tracker-v6';
 
 const APP_SHELL = [
   './',
@@ -27,9 +27,7 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
-
   event.respondWith(
-    // Network first — always try to get fresh version
     fetch(event.request).then(response => {
       if (!response || response.status !== 200 || response.type !== 'basic') {
         return response;
@@ -38,7 +36,6 @@ self.addEventListener('fetch', event => {
       caches.open(CACHE_NAME).then(cache => cache.put(event.request, toCache));
       return response;
     }).catch(() => {
-      // Network failed — fall back to cache
       return caches.match(event.request);
     })
   );
