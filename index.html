@@ -611,7 +611,7 @@ let activeDayId=(program.days[0]&&program.days[0].id)||'fb';
 
 function getSyncMap(){const m={};for(const[sid,list]of Object.entries(program.exercises||{})){for(const ex of list){if(!ex.syncKey)continue;if(!m[ex.syncKey])m[ex.syncKey]=[];if(!m[ex.syncKey].includes(sid))m[ex.syncKey].push(sid);}}return m;}
 function exKey(ex,sid,idx){return ex.syncKey?ex.syncKey:`${sid}_${idx}`;}
-function monthPrefix(){return`${program.year}_${String(program.month+1).padStart(2,'0')}`;}
+function monthPrefix(){return`${pgActiveId()}_${program.year}_${String(program.month+1).padStart(2,'0')}`;}
 function storKey(k,sess,s,f){return`wt_${monthPrefix()}_${k}_sess${sess}_s${s}_${f}`;}
 function ld(k){try{return localStorage.getItem(k)||'';}catch{return'';}}
 function sv(k,v){try{localStorage.setItem(k,v);}catch{}}
@@ -784,7 +784,7 @@ function addSet(sid,exIdx,key,sess,prevSess,prevMonthPrefix,isShared){program.ex
 function removeSet(sid,exIdx,key,sess,setIdx){if(program.exercises[sid][exIdx].numSets<=1)return;program.exercises[sid][exIdx].numSets--;saveProgram();sv(storKey(key,sess,setIdx,'weight'),'');sv(storKey(key,sess,setIdx,'reps'),'');renderContent();}
 
 let dayEditTarget=null;
-function openDayModal(id){dayEditTarget={id,isNew:false};const day=program.days.find(d=>d.id===id);document.getElementById('dayModalTitle').textContent='Rename Day';document.getElementById('dayName').value=day && label||'';document.getElementById('dayDeleteBtn').style.display='';openModal('dayModal');}
+function openDayModal(id){dayEditTarget={id,isNew:false};const day=program.days.find(d=>d.id===id);document.getElementById('dayModalTitle').textContent='Rename Day';document.getElementById('dayName').value=day && day.label||'';document.getElementById('dayDeleteBtn').style.display='';openModal('dayModal');}
 function openAddDayModal(){dayEditTarget={id:genId(),isNew:true};document.getElementById('dayModalTitle').textContent='Add Workout Day';document.getElementById('dayName').value='';document.getElementById('dayDeleteBtn').style.display='none';openModal('dayModal');}
 function saveDay(){const label=document.getElementById('dayName').value.trim()||'Day';const{id,isNew}=dayEditTarget;if(isNew){program.days.push({id,label});program.exercises[id]=[];activeDayId=id;}else{const day=program.days.find(d=>d.id===id);if(day)day.label=label;}saveProgram();closeModal('dayModal');render();}
 function deleteDay(){const{id}=dayEditTarget;if(program.days.length<=1){return;}program.days=program.days.filter(d=>d.id!==id);delete program.exercises[id];if(activeDayId===id)activeDayId=program.days[0].id;saveProgram();closeModal('dayModal');render();}
@@ -1141,21 +1141,26 @@ function copyBackup(){
 
 function restoreBackup(){
   const text=document.getElementById('restoreText').value.trim();
-  if(!text)return;
+  if(!text){showToast('Paste your backup text first.');return;}
   try{
     const backup=JSON.parse(text);
-    if(!backup.data)throw new Error('Invalid backup');
-    // Restore program
-    if(backup.program) localStorage.setItem('wt_program',JSON.stringify(backup.program));
-    // Restore data keys
-    for(const[k,v] of Object.entries(backup.data)) localStorage.setItem(k,v);
-    // Reload
+    // Support both full backup format {program, data} and raw program format
+    if(backup.program && backup.data){
+      // Full backup format
+      localStorage.setItem('wt_program',JSON.stringify(backup.program));
+      for(const[k,v] of Object.entries(backup.data)) localStorage.setItem(k,v);
+    } else if(backup.month !== undefined && backup.exercises !== undefined){
+      // Raw program JSON pasted directly
+      localStorage.setItem('wt_program',JSON.stringify(backup));
+    } else {
+      throw new Error('Invalid backup');
+    }
     program=loadProgram();
     closeModal('backupModal');
     render();
     showToast('Restore successful!');
   }catch(e){
-    showToast('Invalid backup data.');
+    showToast('Invalid backup — make sure you copied the full export text.');
   }
 }
 
@@ -1752,6 +1757,13 @@ function renderProgramList(){
       loadBtn.onclick = () => pgSwitch(p.id);
       btnWrap.appendChild(loadBtn);
     }
+    const clrBtn = document.createElement('button');
+    clrBtn.className = 'timer-btn';
+    clrBtn.style.color = 'var(--accent)';
+    clrBtn.style.borderColor = 'rgba(200,241,53,.3)';
+    clrBtn.textContent = 'Clear';
+    clrBtn.onclick = () => pgClearData(p.id, p.name);
+    btnWrap.appendChild(clrBtn);
     const delBtn = document.createElement('button');
     delBtn.className = 'timer-btn';
     delBtn.style.color = 'var(--red)';
@@ -1805,6 +1817,24 @@ function pgSwitch(id){
   pgUpdateBtn(target.name);
   closeModal('programModal');
   render();
+}
+
+function pgClearData(id, name){
+  if(!confirm(`Clear all workout history for "${name}"? This cannot be undone.`)) return;
+  // Remove all localStorage keys that belong to this program
+  const prefix = `wt_${id}_`;
+  const bwPrefix = `wt_bw_${id}_`;
+  const notesPrefix = `wt_notes_${id}_`;
+  const toRemove = [];
+  for(let i = 0; i < localStorage.length; i++){
+    const k = localStorage.key(i);
+    if(k && (k.startsWith(prefix) || k.startsWith(bwPrefix) || k.startsWith(notesPrefix))){
+      toRemove.push(k);
+    }
+  }
+  toRemove.forEach(k => localStorage.removeItem(k));
+  showToast(`Cleared data for "${name}".`);
+  if(pgActiveId() === id) render();
 }
 
 function pgDelete(id){
