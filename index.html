@@ -611,7 +611,7 @@ let activeDayId=(program.days[0]&&program.days[0].id)||'fb';
 
 function getSyncMap(){const m={};for(const[sid,list]of Object.entries(program.exercises||{})){for(const ex of list){if(!ex.syncKey)continue;if(!m[ex.syncKey])m[ex.syncKey]=[];if(!m[ex.syncKey].includes(sid))m[ex.syncKey].push(sid);}}return m;}
 function exKey(ex,sid,idx){return ex.syncKey?ex.syncKey:`${sid}_${idx}`;}
-function monthPrefix(){return`${program.year}_${String(program.month+1).padStart(2,'0')}`;}
+function monthPrefix(){return`${pgActiveId()}_${program.year}_${String(program.month+1).padStart(2,'0')}`;}
 function storKey(k,sess,s,f){return`wt_${monthPrefix()}_${k}_sess${sess}_s${s}_${f}`;}
 function ld(k){try{return localStorage.getItem(k)||'';}catch{return'';}}
 function sv(k,v){try{localStorage.setItem(k,v);}catch{}}
@@ -1141,21 +1141,23 @@ function copyBackup(){
 
 function restoreBackup(){
   const text=document.getElementById('restoreText').value.trim();
-  if(!text)return;
+  if(!text){showToast('Paste your backup text first.');return;}
   try{
     const backup=JSON.parse(text);
-    if(!backup.data)throw new Error('Invalid backup');
-    // Restore program
-    if(backup.program) localStorage.setItem('wt_program',JSON.stringify(backup.program));
-    // Restore data keys
-    for(const[k,v] of Object.entries(backup.data)) localStorage.setItem(k,v);
-    // Reload
+    if(backup.program&&backup.data){
+      localStorage.setItem('wt_program',JSON.stringify(backup.program));
+      for(const[k,v] of Object.entries(backup.data)) localStorage.setItem(k,v);
+    } else if(backup.month!==undefined&&backup.exercises!==undefined){
+      localStorage.setItem('wt_program',JSON.stringify(backup));
+    } else {
+      throw new Error('Invalid backup');
+    }
     program=loadProgram();
     closeModal('backupModal');
     render();
     showToast('Restore successful!');
   }catch(e){
-    showToast('Invalid backup data.');
+    showToast('Invalid backup — make sure you copied the full export text.');
   }
 }
 
@@ -1517,10 +1519,6 @@ function quickFill(key,sess,prevSess,prevMonthPrefix,numSets){
       pr=localStorage.getItem(storKey(key,prevSess,s,'reps'))||'';
     }
     if(pw){
-      // Only update the DOM — do NOT write to localStorage here.
-      // Data is persisted only when the user edits and commits via change/blur (commitInput).
-      // This prevents quickFill from pre-populating a brand-new session's storage,
-      // which caused old workout data to appear on every new session.
       const wEl=document.getElementById(`inp_${key}_${sess}_${s}_weight`);
       const rEl=document.getElementById(`inp_${key}_${sess}_${s}_reps`);
       if(wEl) wEl.value=pw;
@@ -1752,6 +1750,19 @@ function renderProgramList(){
       loadBtn.onclick = () => pgSwitch(p.id);
       btnWrap.appendChild(loadBtn);
     }
+    const renBtn = document.createElement('button');
+    renBtn.className = 'timer-btn';
+    renBtn.style.color = 'var(--accent)';
+    renBtn.style.borderColor = 'rgba(200,241,53,.3)';
+    renBtn.textContent = 'Rename';
+    renBtn.onclick = () => pgRename(p.id, p.name);
+    btnWrap.appendChild(renBtn);
+    const clrBtn = document.createElement('button');
+    clrBtn.className = 'timer-btn';
+    clrBtn.style.color = 'var(--muted2)';
+    clrBtn.textContent = 'Clear';
+    clrBtn.onclick = () => pgClearData(p.id, p.name);
+    btnWrap.appendChild(clrBtn);
     const delBtn = document.createElement('button');
     delBtn.className = 'timer-btn';
     delBtn.style.color = 'var(--red)';
@@ -1805,6 +1816,28 @@ function pgSwitch(id){
   pgUpdateBtn(target.name);
   closeModal('programModal');
   render();
+}
+
+function pgRename(id, currentName){
+  const newName = prompt('Rename program:', currentName);
+  if(!newName || !newName.trim()) return;
+  const list = pgLoad();
+  const p = list.find(p => p.id === id);
+  if(p){ p.name = newName.trim(); pgSave(list); }
+  if(pgActiveId() === id) pgUpdateBtn(newName.trim());
+  renderProgramList();
+}
+
+function pgClearData(id, name){
+  if(!confirm(`Clear all workout history for "${name}"? This cannot be undone.`)) return;
+  const toRemove = [];
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(k&&k.startsWith(`wt_${id}_`)) toRemove.push(k);
+  }
+  toRemove.forEach(k=>localStorage.removeItem(k));
+  showToast(`Cleared data for "${name}".`);
+  if(pgActiveId()===id) render();
 }
 
 function pgDelete(id){
