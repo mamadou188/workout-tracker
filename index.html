@@ -1517,8 +1517,10 @@ function quickFill(key,sess,prevSess,prevMonthPrefix,numSets){
       pr=localStorage.getItem(storKey(key,prevSess,s,'reps'))||'';
     }
     if(pw){
-      sv(storKey(key,sess,s,'weight'),pw);
-      sv(storKey(key,sess,s,'reps'),pr);
+      // Only update the DOM — do NOT write to localStorage here.
+      // Data is persisted only when the user edits and commits via change/blur (commitInput).
+      // This prevents quickFill from pre-populating a brand-new session's storage,
+      // which caused old workout data to appear on every new session.
       const wEl=document.getElementById(`inp_${key}_${sess}_${s}_weight`);
       const rEl=document.getElementById(`inp_${key}_${sess}_${s}_reps`);
       if(wEl) wEl.value=pw;
