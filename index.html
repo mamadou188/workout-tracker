@@ -1141,21 +1141,26 @@ function copyBackup(){
 
 function restoreBackup(){
   const text=document.getElementById('restoreText').value.trim();
-  if(!text)return;
+  if(!text){showToast('Paste your backup text first.');return;}
   try{
     const backup=JSON.parse(text);
-    if(!backup.data)throw new Error('Invalid backup');
-    // Restore program
-    if(backup.program) localStorage.setItem('wt_program',JSON.stringify(backup.program));
-    // Restore data keys
-    for(const[k,v] of Object.entries(backup.data)) localStorage.setItem(k,v);
-    // Reload
+    // Support both full backup format {program, data} and raw program format
+    if(backup.program && backup.data){
+      // Full backup format
+      localStorage.setItem('wt_program',JSON.stringify(backup.program));
+      for(const[k,v] of Object.entries(backup.data)) localStorage.setItem(k,v);
+    } else if(backup.month !== undefined && backup.exercises !== undefined){
+      // Raw program JSON pasted directly
+      localStorage.setItem('wt_program',JSON.stringify(backup));
+    } else {
+      throw new Error('Invalid backup');
+    }
     program=loadProgram();
     closeModal('backupModal');
     render();
     showToast('Restore successful!');
   }catch(e){
-    showToast('Invalid backup data.');
+    showToast('Invalid backup — make sure you copied the full export text.');
   }
 }
 
