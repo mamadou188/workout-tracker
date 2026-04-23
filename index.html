@@ -37,6 +37,10 @@ header{background:var(--surface);border-bottom:1px solid var(--border);padding:1
   transition:all .15s;white-space:nowrap;}
 .sess-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
 .sess-btn:hover:not(.active){color:var(--text);}
+.week-ctrl-btn{flex:0 0 32px;width:32px;padding:9px 0;border:none;background:transparent;
+  color:var(--red);font-family:var(--font-mono);font-size:16px;font-weight:700;
+  cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;line-height:1;}
+.week-ctrl-btn:hover{color:var(--accent);}
 .day-tabs{display:flex;gap:6px;padding:11px 14px 0;overflow-x:auto;scrollbar-width:none;flex-wrap:wrap;}
 .day-tabs::-webkit-scrollbar{display:none;}
 .day-tab{padding:5px 12px;border-radius:2px;border:1px solid var(--border);background:transparent;
@@ -316,7 +320,7 @@ white-space:nowrap;}
 
 <header>
   <div class="logo">Workout Log</div>
-  <div class="hdr-right">
+  <div class="hdr-right"><span id="syncStatus" style="font-size:9px;letter-spacing:1px;color:var(--muted2);transition:color .3s;"></span>
     <button class="hdr-btn" id="programBtn" onclick="openProgramModal()">PROG</button>
     <button class="hdr-btn" id="monthBtn" onclick="openMonthModal()">APR 2025</button>
     <button class="hdr-btn" onclick="openBackupModal()" title="Backup">💾</button>
@@ -558,6 +562,118 @@ white-space:nowrap;}
 </div>
 
 <script>
+// ── SUPABASE CONFIG ──────────────────────────────────────────────────────────
+const SUPA_URL = 'https://denfusidgeqksdnrgiig.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlbmZ1c2lkZ2Vxa3NkbnJnaWlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5NTA3MzIsImV4cCI6MjA5MjUyNjczMn0.wGvDFwxybtx-gf7Prtrr1hORPb0QHBNWZBQI4JnLhBI';
+
+// ── HYBRID STORAGE ───────────────────────────────────────────────────────────
+// Reads always come from localStorage (instant, offline-safe).
+// Writes go to localStorage immediately AND queue a Supabase upsert.
+// On app load, we pull all rows from Supabase and hydrate localStorage.
+
+let _syncQueue = {};   // key -> value pending upload
+let _syncTimer  = null;
+let _online     = navigator.onLine;
+let _syncStatus = 'idle'; // 'idle' | 'syncing' | 'error' | 'ok'
+
+window.addEventListener('online',  () => { _online = true;  flushQueue(); });
+window.addEventListener('offline', () => { _online = false; });
+
+function setSyncStatus(s){
+  _syncStatus = s;
+  const el = document.getElementById('syncStatus');
+  if(!el) return;
+  const map = { idle:'', syncing:'⟳ Syncing…', error:'⚠ Sync error', ok:'✓ Saved' };
+  el.textContent = map[s] || '';
+  el.style.color = s === 'error' ? 'var(--red)' : s === 'ok' ? 'var(--accent)' : 'var(--muted2)';
+  if(s === 'ok') setTimeout(() => { if(_syncStatus==='ok') setSyncStatus('idle'); }, 2000);
+}
+
+async function supaUpsert(pairs){
+  // pairs = [{key, value}, ...]
+  const res = await fetch(`${SUPA_URL}/rest/v1/workout_data`, {
+    method: 'POST',
+    headers: {
+      'apikey': SUPA_KEY,
+      'Authorization': 'Bearer ' + SUPA_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': 'resolution=merge-duplicates'
+    },
+    body: JSON.stringify(pairs)
+  });
+  if(!res.ok) throw new Error('Supabase upsert failed: ' + res.status);
+}
+
+async function flushQueue(){
+  if(!_online) return;
+  const keys = Object.keys(_syncQueue);
+  if(!keys.length) return;
+  setSyncStatus('syncing');
+  const pairs = keys.map(k => ({ key: k, value: _syncQueue[k] }));
+  try {
+    await supaUpsert(pairs);
+    keys.forEach(k => delete _syncQueue[k]);
+    setSyncStatus('ok');
+  } catch(e) {
+    console.warn('Sync flush failed', e);
+    setSyncStatus('error');
+  }
+}
+
+function scheduledFlush(){
+  if(_syncTimer) clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(flushQueue, 1200);
+}
+
+// Wrapped storage primitives — drop-in replacements for localStorage calls
+function ld(k){ try{ return localStorage.getItem(k)||''; } catch{ return ''; } }
+
+function sv(k, v){
+  // Write to localStorage immediately
+  try { 
+    if(v === '' || v === null || v === undefined) {
+      localStorage.removeItem(k);
+    } else {
+      localStorage.setItem(k, v);
+    }
+  } catch(e){}
+  // Queue Supabase sync
+  _syncQueue[k] = (v === '' || v === null || v === undefined) ? '__deleted__' : v;
+  scheduledFlush();
+}
+
+// Load ALL data from Supabase into localStorage on startup
+async function hydrateFromSupabase(){
+  setSyncStatus('syncing');
+  try {
+    const res = await fetch(`${SUPA_URL}/rest/v1/workout_data?select=key,value`, {
+      headers: {
+        'apikey': SUPA_KEY,
+        'Authorization': 'Bearer ' + SUPA_KEY
+      }
+    });
+    if(!res.ok) throw new Error('Fetch failed: ' + res.status);
+    const rows = await res.json();
+    let count = 0;
+    rows.forEach(row => {
+      if(row.value === '__deleted__'){
+        localStorage.removeItem(row.key);
+      } else {
+        localStorage.setItem(row.key, row.value);
+        count++;
+      }
+    });
+    setSyncStatus('ok');
+    console.log(`Hydrated ${count} keys from Supabase`);
+    return true;
+  } catch(e) {
+    console.warn('Hydration failed (offline?), using local cache', e);
+    setSyncStatus(_online ? 'error' : 'idle');
+    return false;
+  }
+}
+
+// Override saveProgram to also sync via sv
 const SHORT_MONTHS=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 
 function defaultProgram(){
@@ -598,13 +714,30 @@ function defaultProgram(){
 }
 
 function loadProgram(){try{const s=localStorage.getItem('wt_program');return s?JSON.parse(s):defaultProgram();}catch{return defaultProgram();}}
-function saveProgram(){localStorage.setItem('wt_program',JSON.stringify(program));}
+function saveProgram(){
+  const data=JSON.stringify(program);
+  localStorage.setItem('wt_program',data);
+  sv('wt_program',data);
+  // Also sync program list
+  const pl=localStorage.getItem('wt_programs');
+  if(pl) sv('wt_programs',pl);
+  const ai=localStorage.getItem('wt_active_prog_id');
+  if(ai) sv('wt_active_prog_id',ai);
+}
 
 let program=loadProgram();
 if(!program.days){program.days=[{id:'fb',label:'Full Body'},{id:'upper',label:'Upper'},{id:'lower',label:'Lower'}];saveProgram();}
 
 const SEED={'wt_2025_04_fb_0_sess1_s0_weight':'47.5','wt_2025_04_fb_0_sess1_s1_weight':'47.5','wt_2025_04_fb_0_sess1_s2_weight':'45','wt_2025_04_fb_0_sess1_s2_reps':'9','wt_2025_04_fb_0_sess2_s0_weight':'50','wt_2025_04_fb_0_sess2_s1_weight':'50','wt_2025_04_fb_0_sess2_s2_weight':'50','wt_2025_04_fb_0_sess3_s0_weight':'50','wt_2025_04_fb_0_sess3_s1_weight':'50','wt_2025_04_fb_0_sess3_s2_weight':'50','wt_2025_04_hs_press_sess1_s0_weight':'55','wt_2025_04_hs_press_sess1_s1_weight':'55','wt_2025_04_hs_press_sess1_s1_reps':'8','wt_2025_04_hs_press_sess1_s2_weight':'52.5','wt_2025_04_hs_press_sess2_s0_weight':'55.125','wt_2025_04_hs_press_sess2_s1_weight':'55','wt_2025_04_hs_press_sess2_s1_reps':'7','wt_2025_04_hs_press_sess2_s2_weight':'40','wt_2025_04_hs_press_sess3_s0_weight':'55.125','wt_2025_04_hs_press_sess3_s1_weight':'55','wt_2025_04_hs_press_sess3_s1_reps':'7','wt_2025_04_hs_press_sess3_s2_weight':'40','wt_2025_04_lat_pull_sess1_s0_weight':'80','wt_2025_04_lat_pull_sess1_s0_reps':'11','wt_2025_04_lat_pull_sess1_s1_weight':'80','wt_2025_04_lat_pull_sess1_s2_weight':'55','wt_2025_04_lat_pull_sess2_s0_weight':'85','wt_2025_04_lat_pull_sess2_s1_weight':'85','wt_2025_04_lat_pull_sess2_s1_reps':'8','wt_2025_04_lat_pull_sess2_s2_weight':'55','wt_2025_04_lat_pull_sess3_s0_weight':'85','wt_2025_04_lat_pull_sess3_s1_weight':'85','wt_2025_04_lat_pull_sess3_s1_reps':'8','wt_2025_04_lat_pull_sess3_s2_weight':'55','wt_2025_04_leg_press_sess1_s0_weight':'150','wt_2025_04_leg_press_sess1_s0_reps':'7','wt_2025_04_leg_press_sess1_s1_weight':'150','wt_2025_04_leg_press_sess1_s1_reps':'7','wt_2025_04_leg_press_sess1_s2_weight':'115','wt_2025_04_leg_press_sess1_s2_reps':'8','wt_2025_04_leg_press_sess2_s0_weight':'160','wt_2025_04_leg_press_sess2_s1_weight':'160','wt_2025_04_leg_press_sess2_s1_reps':'8','wt_2025_04_leg_press_sess2_s2_weight':'110','wt_2025_04_leg_press_sess2_s2_reps':'7','wt_2025_04_leg_press_sess3_s0_weight':'160','wt_2025_04_leg_press_sess3_s1_weight':'160','wt_2025_04_leg_press_sess3_s1_reps':'8','wt_2025_04_leg_press_sess3_s2_weight':'115','wt_2025_04_leg_press_sess3_s2_reps':'7','wt_2025_04_preacher_sess1_s0_weight':'45','wt_2025_04_preacher_sess1_s0_reps':'8','wt_2025_04_preacher_sess1_s1_weight':'42.5','wt_2025_04_preacher_sess1_s1_reps':'7','wt_2025_04_preacher_sess2_s0_weight':'50','wt_2025_04_preacher_sess2_s1_weight':'50','wt_2025_04_preacher_sess2_s1_reps':'7','wt_2025_04_preacher_sess3_s0_weight':'50','wt_2025_04_preacher_sess3_s1_weight':'50','wt_2025_04_preacher_sess3_s1_reps':'7','wt_2025_04_lateral_sess1_s0_weight':'14','wt_2025_04_lateral_sess1_s0_reps':'14','wt_2025_04_lateral_sess1_s1_weight':'14','wt_2025_04_lateral_sess2_s0_weight':'16','wt_2025_04_lateral_sess2_s0_reps':'9','wt_2025_04_lateral_sess2_s1_weight':'16.14','wt_2025_04_lateral_sess2_s1_reps':'9','wt_2025_04_lateral_sess3_s0_weight':'16','wt_2025_04_lateral_sess3_s0_reps':'9','wt_2025_04_lateral_sess3_s1_weight':'16.14','wt_2025_04_lateral_sess3_s1_reps':'9','wt_2025_04_triceps_sess1_s0_weight':'42.5','wt_2025_04_triceps_sess1_s0_reps':'5','wt_2025_04_triceps_sess1_s1_weight':'42.5','wt_2025_04_triceps_sess2_s0_weight':'47.5','wt_2025_04_triceps_sess2_s0_reps':'9','wt_2025_04_triceps_sess2_s1_weight':'47.5','wt_2025_04_triceps_sess2_s1_reps':'8','wt_2025_04_triceps_sess3_s0_weight':'47.5','wt_2025_04_triceps_sess3_s0_reps':'9','wt_2025_04_triceps_sess3_s1_weight':'47.5','wt_2025_04_triceps_sess3_s1_reps':'8','wt_2025_04_leg_raises_sess1_s0_weight':'10','wt_2025_04_leg_raises_sess1_s0_reps':'10','wt_2025_04_leg_raises_sess1_s1_weight':'10','wt_2025_04_leg_raises_sess2_s0_weight':'1','wt_2025_04_leg_raises_sess2_s0_reps':'4.8','wt_2025_04_leg_raises_sess2_s1_weight':'1','wt_2025_04_leg_raises_sess2_s1_reps':'3.8','wt_2025_04_leg_raises_sess3_s0_weight':'1','wt_2025_04_leg_raises_sess3_s0_reps':'4.8','wt_2025_04_leg_raises_sess3_s1_weight':'1','wt_2025_04_leg_raises_sess3_s1_reps':'3.8','wt_2025_04_upper_0_sess1_s0_weight':'22.5','wt_2025_04_upper_0_sess1_s1_weight':'20','wt_2025_04_upper_0_sess2_s0_weight':'25','wt_2025_04_upper_0_sess2_s0_reps':'0.6','wt_2025_04_upper_0_sess2_s1_weight':'22.5','wt_2025_04_upper_0_sess2_s1_reps':'6.6','wt_2025_04_upper_0_sess3_s0_weight':'25','wt_2025_04_upper_0_sess3_s0_reps':'0.6','wt_2025_04_upper_0_sess3_s1_weight':'22.5','wt_2025_04_upper_0_sess3_s1_reps':'6.6','wt_2025_04_upper_1_sess1_s0_weight':'40','wt_2025_04_upper_1_sess1_s0_reps':'6','wt_2025_04_upper_1_sess1_s1_weight':'40','wt_2025_04_upper_1_sess1_s1_reps':'4','wt_2025_04_upper_1_sess2_s0_weight':'42.5','wt_2025_04_upper_1_sess2_s1_weight':'40.2','wt_2025_04_upper_1_sess2_s1_reps':'6','wt_2025_04_upper_1_sess3_s0_weight':'42.5','wt_2025_04_upper_1_sess3_s1_weight':'40.2','wt_2025_04_upper_1_sess3_s1_reps':'6','wt_2025_04_upper_2_sess1_s0_weight':'52.5','wt_2025_04_upper_2_sess2_s0_weight':'55.5','wt_2025_04_upper_2_sess3_s0_weight':'55.5','wt_2025_04_upper_3_sess2_s0_weight':'35','wt_2025_04_upper_3_sess2_s0_reps':'7','wt_2025_04_upper_3_sess3_s0_weight':'35','wt_2025_04_upper_3_sess3_s0_reps':'7','wt_2025_04_incline_curls_sess1_s0_weight':'16','wt_2025_04_incline_curls_sess1_s1_weight':'14','wt_2025_04_incline_curls_sess1_s1_reps':'8','wt_2025_04_incline_curls_sess2_s0_weight':'18','wt_2025_04_incline_curls_sess2_s1_weight':'18','wt_2025_04_incline_curls_sess3_s0_weight':'18','wt_2025_04_incline_curls_sess3_s1_weight':'18','wt_2025_04_lower_0_sess1_s0_weight':'62.5','wt_2025_04_lower_0_sess1_s0_reps':'9','wt_2025_04_lower_0_sess1_s1_weight':'62.5','wt_2025_04_lower_0_sess1_s1_reps':'8','wt_2025_04_lower_0_sess2_s0_weight':'67.5','wt_2025_04_lower_0_sess2_s1_weight':'67.5','wt_2025_04_lower_0_sess3_s0_weight':'67.5','wt_2025_04_lower_0_sess3_s1_weight':'67.5','wt_2025_04_lower_1_sess1_s0_weight':'90','wt_2025_04_lower_1_sess1_s1_weight':'85','wt_2025_04_lower_1_sess1_s1_reps':'9','wt_2025_04_lower_1_sess2_s0_weight':'90','wt_2025_04_lower_1_sess2_s0_reps':'6','wt_2025_04_lower_1_sess2_s1_weight':'85','wt_2025_04_lower_1_sess2_s1_reps':'9','wt_2025_04_lower_1_sess3_s0_weight':'90','wt_2025_04_lower_1_sess3_s0_reps':'6','wt_2025_04_lower_1_sess3_s1_weight':'85','wt_2025_04_lower_1_sess3_s1_reps':'9','wt_2025_04_lower_3_sess1_s0_weight':'60','wt_2025_04_lower_3_sess1_s0_reps':'8','wt_2025_04_lower_3_sess2_s0_weight':'60','wt_2025_04_lower_3_sess2_s0_reps':'9','wt_2025_04_lower_3_sess3_s0_weight':'60','wt_2025_04_lower_3_sess3_s0_reps':'9','wt_2025_04_lower_5_sess1_s0_weight':'90','wt_2025_04_lower_5_sess1_s1_weight':'90','wt_2025_04_lower_5_sess2_s0_weight':'100','wt_2025_04_lower_5_sess2_s1_weight':'100','wt_2025_04_lower_5_sess3_s0_weight':'100','wt_2025_04_lower_5_sess3_s1_weight':'100','wt_2025_04_lower_6_sess1_s0_weight':'180','wt_2025_04_lower_6_sess1_s1_weight':'180','wt_2025_04_lower_6_sess2_s0_weight':'180','wt_2025_04_lower_6_sess2_s0_reps':'11','wt_2025_04_lower_6_sess2_s1_weight':'180','wt_2025_04_lower_6_sess2_s1_reps':'10','wt_2025_04_lower_6_sess3_s0_weight':'180','wt_2025_04_lower_6_sess3_s0_reps':'11','wt_2025_04_lower_6_sess3_s1_weight':'180','wt_2025_04_lower_6_sess3_s1_reps':'10'};
-if(!localStorage.getItem('wt_seeded_v2')){for(const[k,v]of Object.entries(SEED))localStorage.setItem(k,v);localStorage.setItem('wt_seeded_v2','1');}
+if(!localStorage.getItem('wt_seeded_v2')){
+  for(const[k,v]of Object.entries(SEED)){
+    localStorage.setItem(k,v);
+    _syncQueue[k]=v;
+  }
+  localStorage.setItem('wt_seeded_v2','1');
+  _syncQueue['wt_seeded_v2']='1';
+  scheduledFlush();
+}
 
 let activeSession=1;
 let activeDayId=(program.days[0]&&program.days[0].id)||'fb';
@@ -618,7 +751,16 @@ function sv(k,v){try{localStorage.setItem(k,v);}catch{}}
 function ton(w,r){const wf=parseFloat(w),rf=parseFloat(r);return(wf>0&&rf>0)?(wf*rf).toFixed(1):'—';}
 function genId(){return'day_'+Math.random().toString(36).slice(2,8);}
 
-function render(){if(!program.days||!program.days.length)return;if(!program.days.find(d=>d.id===activeDayId))activeDayId=program.days[0].id;renderHeader();renderSessionNav();renderDayTabs();renderContent();}
+function render(){
+  renderHeader();renderSessionNav();renderDayTabs();
+  if(!program.days||!program.days.length){
+    const content=document.getElementById('content');
+    if(content)content.innerHTML='<div style="padding:32px 14px;text-align:center;color:var(--muted2);font-size:11px;letter-spacing:1px;">NO WORKOUT DAYS YET<br><span style="font-size:10px;color:var(--muted);margin-top:6px;display:block;">Tap + Day above to add your first workout</span></div>';
+    return;
+  }
+  if(!program.days.find(d=>d.id===activeDayId))activeDayId=program.days[0].id;
+  renderContent();
+}
 
 function renderHeader(){document.getElementById('monthBtn').textContent=SHORT_MONTHS[program.month]+' '+program.year;}
 
@@ -631,6 +773,30 @@ function renderSessionNav(){
     btn.onclick=()=>{activeSession=s;renderContent();renderSessionNav();};
     nav.appendChild(btn);
   }
+  // — Week +/- buttons (use separate class to avoid flex:1 from sess-btn)
+  const delBtn=document.createElement('button');
+  delBtn.className='week-ctrl-btn';
+  delBtn.textContent='−';
+  delBtn.title='Remove last week';
+  delBtn.onclick=()=>{
+    if(program.totalSessions<=1){showToast('Need at least 1 week.');return;}
+    if(!confirm('Remove Week '+program.totalSessions+'? Logged data for that week will remain but the tab will be gone.'))return;
+    program.totalSessions--;
+    if(activeSession>program.totalSessions)activeSession=program.totalSessions;
+    saveProgram();renderSessionNav();renderContent();
+  };
+  const addBtn=document.createElement('button');
+  addBtn.className='week-ctrl-btn';
+  addBtn.textContent='+';
+  addBtn.title='Add a week';
+  addBtn.style.color='var(--accent)';
+  addBtn.onclick=()=>{
+    if(program.totalSessions>=20){showToast('Max 20 weeks.');return;}
+    program.totalSessions++;
+    saveProgram();renderSessionNav();
+  };
+  nav.appendChild(delBtn);
+  nav.appendChild(addBtn);
 }
 
 function renderDayTabs(){
@@ -784,7 +950,7 @@ function addSet(sid,exIdx,key,sess,prevSess,prevMonthPrefix,isShared){program.ex
 function removeSet(sid,exIdx,key,sess,setIdx){if(program.exercises[sid][exIdx].numSets<=1)return;program.exercises[sid][exIdx].numSets--;saveProgram();sv(storKey(key,sess,setIdx,'weight'),'');sv(storKey(key,sess,setIdx,'reps'),'');renderContent();}
 
 let dayEditTarget=null;
-function openDayModal(id){dayEditTarget={id,isNew:false};const day=program.days.find(d=>d.id===id);document.getElementById('dayModalTitle').textContent='Rename Day';document.getElementById('dayName').value=day && label||'';document.getElementById('dayDeleteBtn').style.display='';openModal('dayModal');}
+function openDayModal(id){dayEditTarget={id,isNew:false};const day=program.days.find(d=>d.id===id);document.getElementById('dayModalTitle').textContent='Rename Day';document.getElementById('dayName').value=day && day.label||'';document.getElementById('dayDeleteBtn').style.display='';openModal('dayModal');}
 function openAddDayModal(){dayEditTarget={id:genId(),isNew:true};document.getElementById('dayModalTitle').textContent='Add Workout Day';document.getElementById('dayName').value='';document.getElementById('dayDeleteBtn').style.display='none';openModal('dayModal');}
 function saveDay(){const label=document.getElementById('dayName').value.trim()||'Day';const{id,isNew}=dayEditTarget;if(isNew){program.days.push({id,label});program.exercises[id]=[];activeDayId=id;}else{const day=program.days.find(d=>d.id===id);if(day)day.label=label;}saveProgram();closeModal('dayModal');render();}
 function deleteDay(){const{id}=dayEditTarget;if(program.days.length<=1){return;}program.days=program.days.filter(d=>d.id!==id);delete program.exercises[id];if(activeDayId===id)activeDayId=program.days[0].id;saveProgram();closeModal('dayModal');render();}
@@ -1517,10 +1683,8 @@ function quickFill(key,sess,prevSess,prevMonthPrefix,numSets){
       pr=localStorage.getItem(storKey(key,prevSess,s,'reps'))||'';
     }
     if(pw){
-      // Only update the DOM — do NOT write to localStorage here.
-      // Data is persisted only when the user edits and commits via change/blur (commitInput).
-      // This prevents quickFill from pre-populating a brand-new session's storage,
-      // which caused old workout data to appear on every new session.
+      sv(storKey(key,sess,s,'weight'),pw);
+      sv(storKey(key,sess,s,'reps'),pr);
       const wEl=document.getElementById(`inp_${key}_${sess}_${s}_weight`);
       const rEl=document.getElementById(`inp_${key}_${sess}_${s}_reps`);
       if(wEl) wEl.value=pw;
@@ -1694,7 +1858,11 @@ function removeSuperset(){
 // wt_program = active program data (always in sync)
 
 function pgLoad(){ try{ return JSON.parse(localStorage.getItem('wt_programs'))||[]; } catch{ return []; } }
-function pgSave(list){ localStorage.setItem('wt_programs', JSON.stringify(list)); }
+function pgSave(list){
+  const data=JSON.stringify(list);
+  localStorage.setItem('wt_programs',data);
+  sv('wt_programs',data);
+}
 function pgActiveId(){ return localStorage.getItem('wt_active_prog_id')||'default'; }
 function pgUpdateBtn(name){ document.getElementById('programBtn').textContent=(name||'PROG').slice(0,8).toUpperCase(); }
 
@@ -1752,15 +1920,47 @@ function renderProgramList(){
       loadBtn.onclick = () => pgSwitch(p.id);
       btnWrap.appendChild(loadBtn);
     }
+    const renBtn = document.createElement('button');
+    renBtn.className = 'timer-btn';
+    renBtn.textContent = '✎';
+    renBtn.title = 'Rename';
+    renBtn.onclick = () => pgStartRename(p.id, p.name, nameDiv);
+    btnWrap.appendChild(renBtn);
     const delBtn = document.createElement('button');
     delBtn.className = 'timer-btn';
     delBtn.style.color = 'var(--red)';
     delBtn.style.borderColor = 'rgba(248,113,113,.3)';
     delBtn.textContent = 'Del';
-    delBtn.onclick = () => pgDelete(p.id);
+    delBtn.onclick = () => { if(confirm('Delete "' + p.name + '"? This cannot be undone.')) pgDelete(p.id); };
     btnWrap.appendChild(delBtn);
     el.appendChild(div);
   });
+}
+
+function pgStartRename(id, currentName, nameEl){
+  const inp = document.createElement('input');
+  inp.className = 'form-input';
+  inp.value = currentName;
+  inp.style.cssText = 'font-size:12px;padding:4px 8px;width:100%;';
+  nameEl.replaceWith(inp);
+  inp.focus();
+  inp.select();
+  function commit(){
+    const newName = inp.value.trim() || currentName;
+    const list = pgLoad();
+    const p = list.find(x => x.id === id);
+    if(p){ p.name = newName; pgSave(list); }
+    // If this is the active program, update the header button
+    if(pgActiveId() === id) pgUpdateBtn(newName);
+    renderProgramList();
+  }
+  inp.addEventListener('blur', commit);
+  inp.addEventListener('keydown', e => { if(e.key==='Enter'){ inp.blur(); } if(e.key==='Escape'){ renderProgramList(); } });
+}
+
+function blankProgram(){
+  const now=new Date();
+  return{month:now.getMonth(),year:now.getFullYear(),totalSessions:4,days:[],exercises:{}};
 }
 
 function createProgram(){
@@ -1772,15 +1972,17 @@ function createProgram(){
 
   // Create new blank program
   const newId = 'p' + Date.now();
-  const newData = defaultProgram();
+  const newData = blankProgram();
   list.push({ id: newId, name, data: newData });
   pgSave(list);
 
   // Activate new program
   localStorage.setItem('wt_active_prog_id', newId);
   localStorage.setItem('wt_program', JSON.stringify(newData));
+  sv('wt_active_prog_id', newId);
+  sv('wt_program', JSON.stringify(newData));
   program = loadProgram();
-  activeDayId = program.days[0]?.id || 'fb';
+  activeDayId = (program.days && program.days[0]) ? program.days[0].id : null;
   activeSession = 1;
 
   document.getElementById('newProgramName').value = '';
@@ -1798,6 +2000,8 @@ function pgSwitch(id){
 
   localStorage.setItem('wt_active_prog_id', id);
   localStorage.setItem('wt_program', JSON.stringify(target.data));
+  sv('wt_active_prog_id', id);
+  sv('wt_program', JSON.stringify(target.data));
   program = loadProgram();
   activeDayId = program.days[0]?.id || 'fb';
   activeSession = 1;
@@ -1933,7 +2137,39 @@ if('serviceWorker' in navigator){
   navigator.serviceWorker.register('./sw.js').catch(()=>{});
 }
 
-render();
+// ── STARTUP ──────────────────────────────────────────────────────────────────
+async function init(){
+  // Show loading state
+  const content = document.getElementById('content');
+  if(content) content.innerHTML = '<div style="padding:40px 14px;text-align:center;color:var(--muted2);font-size:11px;letter-spacing:1px;">⟳ Loading your data…</div>';
+
+  // Try to pull latest from Supabase (works if online)
+  await hydrateFromSupabase();
+
+  // Reload program from localStorage (now hydrated)
+  program = loadProgram();
+  if(!program.days){ program.days=[{id:'fb',label:'Full Body'},{id:'upper',label:'Upper'},{id:'lower',label:'Lower'}]; saveProgram(); }
+  activeDayId = (program.days[0] && program.days[0].id) || 'fb';
+
+  // Sync program list + active id
+  const savedProgList = localStorage.getItem('wt_programs');
+  const savedActiveId = localStorage.getItem('wt_active_prog_id');
+  if(savedActiveId){
+    const list = savedProgList ? JSON.parse(savedProgList) : [];
+    const active = list.find(p => p.id === savedActiveId);
+    if(active){
+      program = active.data;
+      localStorage.setItem('wt_program', JSON.stringify(program));
+      activeDayId = (program.days && program.days[0]) ? program.days[0].id : 'fb';
+    }
+  }
+
+  pgSnapshot();
+  pgUpdateBtn(pgGetName());
+  render();
+}
+
+init();
 </script>
 
 <!-- PROGRAM MODAL -->
