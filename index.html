@@ -1903,7 +1903,7 @@ function renderProgramList(){
     delBtn.style.color = 'var(--red)';
     delBtn.style.borderColor = 'rgba(248,113,113,.3)';
     delBtn.textContent = 'Del';
-    delBtn.onclick = () => pgDelete(p.id);
+    delBtn.onclick = () => { if(confirm('Delete "' + p.name + '"? This cannot be undone.')) pgDelete(p.id); };
     btnWrap.appendChild(delBtn);
     el.appendChild(div);
   });
