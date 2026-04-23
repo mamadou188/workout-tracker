@@ -352,7 +352,6 @@ white-space:nowrap;}
     <button class="hdr-btn" id="programBtn" onclick="openProgramModal()">PROG</button>
     <button class="hdr-btn" id="monthBtn" onclick="openMonthModal()">APR 2025</button>
     <button class="hdr-btn" onclick="openBackupModal()" title="Backup">💾</button>
-    <button class="hdr-btn" onclick="openSettingsModal()" title="Settings">⚙</button>
   </div>
 </header>
 <div class="view-nav">
@@ -381,9 +380,9 @@ white-space:nowrap;}
 <!-- BODYWEIGHT + NOTES -->
 
 <div class="bw-row" id="bwRow">
-  <span class="bw-label" id="bwLabel">Bodyweight</span>
+  <span class="bw-label">Bodyweight</span>
   <input type="number" inputmode="decimal" step="any" class="bw-input" id="bwInput" placeholder="—"/>
-  <span class="bw-unit" id="bwUnitLabel">kg</span>
+  <span class="bw-unit">kg</span>
 </div>
 <div class="session-notes-wrap" id="notesWrap">
   <span class="session-notes-label">Week notes</span>
@@ -474,7 +473,7 @@ white-space:nowrap;}
 <div class="modal-overlay" id="backupModal">
   <div class="modal">
     <button class="modal-close" onclick="closeModal('backupModal')">✕</button>
-    <div class="modal-title" id="backupModalTitle">Backup &amp; Restore</div>
+    <div class="modal-title">Backup & Restore</div>
     <div class="form-group">
       <label class="form-label">Export — copy this text and save it somewhere safe</label>
       <textarea class="form-input" id="backupText" rows="6" style="resize:none;font-size:10px;line-height:1.4;" readonly></textarea>
@@ -499,7 +498,7 @@ white-space:nowrap;}
 <div class="modal-overlay" id="monthModal">
   <div class="modal">
     <button class="modal-close" onclick="closeModal('monthModal')">✕</button>
-    <div class="modal-title" id="monthModalTitle">Change Period</div>
+    <div class="modal-title">Change Period</div>
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">Month</label>
@@ -598,204 +597,6 @@ white-space:nowrap;}
 </div>
 
 <script>
-// ── LANGUAGE / i18n ──────────────────────────────────────────────────────────
-const LANGS = {
-  en: {
-    // Nav
-    navLog:'Log', navStats:'Stats', navPR:'PR', navIntel:'Intel', navVolume:'Volume',
-    // Header
-    prog:'PROG',
-    // Week bar
-    week:'Week', addWeek:'Add a week', removeWeek:'Remove last week',
-    maxWeeks:'Max 20 weeks.', minWeeks:'Need at least 1 week.',
-    removeWeekConfirm:'Remove Week ', removeWeekMsg:'Logged data for that week will remain in history.',
-    // Day tabs
-    addDay:'+ Day',
-    // Log
-    noWorkoutDays:'NO WORKOUT DAYS YET', noWorkoutDaysSub:'Tap + Day above to add your first workout',
-    addExercise:'+ Add exercise to ', addSet:'+ Add set', fillLast:'↙ Fill from last session',
-    history:'◴ History', syncedWith:'↕ synced with ', supersetWith:'✦ Superset with: ',
-    rest:'REST', reps:'reps',
-    bwLabel:'Bodyweight', bwUnit:'kg',
-    notesPlaceholder:'How did you feel? Any notes…', notesLabel:'WEEK NOTES',
-    // Exercise modal
-    editExercise:'Edit Exercise', addExerciseTitle:'Add Exercise',
-    exName:'Exercise Name', exNamePlaceholder:'e.g. Preacher Curls',
-    repsTarget:'Reps target', restLabel:'Rest', machineSetup:'Machine setup',
-    numSets:'Number of sets', restSecs:'Rest time (seconds)', restSecsPlaceholder:'e.g. 180 for 3 minutes',
-    syncWith:'Sync with exercise', noSync:'— No sync —', syncNote:'Values of set 1 will sync across sessions',
-    syncCurrently:'↕ Currently synced with: ',
-    groupSuperset:'+ Group as Superset', editSuperset:'✦ Edit Superset',
-    deleteEx:'Delete', cancelBtn:'Cancel', saveBtn:'Save',
-    // Day modal
-    renameDay:'Rename Day', addWorkoutDay:'Add Workout Day',
-    dayNameLabel:'Day Name', dayNamePlaceholder:'e.g. Push, Pull, Legs…',
-    deleteDay:'Delete Day',
-    // Month modal
-    changePeriod:'Change Period', monthLabel:'Month', yearLabel:'Year',
-    weeksLabel:'Weeks this month', applyBtn:'Apply',
-    // Programs modal
-    programs:'Programs', newProgramLabel:'New Program Name', newProgramPlaceholder:'e.g. Summer Cut',
-    createBtn:'Create', closeBtn:'Close', activeLabel:'● ACTIVE', tapLoad:'tap Load to switch',
-    loadBtn:'Load', delBtn:'Del',
-    // Superset modal
-    supersetTitle:'Superset', groupWith:'Group with exercise', noneOption:'— None —',
-    supersetNote:'These two exercises will be visually grouped as a superset.',
-    removeSuperset:'Remove', supersetSave:'Save',
-    // Backup modal
-    backupTitle:'Backup & Restore', backupLabel:'Backup Data', copyClipboard:'Copy to Clipboard',
-    copied:'Copied!', restoreLabel:'Restore', restorePlaceholder:'Paste your backup here…',
-    restoreBtn:'Restore', restoreOk:'Restore successful!', restoreErr:'Invalid backup data.',
-    importCSVBtn:'Import CSV',
-    // Import modal
-    importTitle:'Import CSV', importLabel:'Paste CSV content',
-    importPlaceholder:'Paste the content of your workout_log.csv here…',
-    importNote:'This will merge imported data with existing data. Nothing will be deleted.',
-    importBtn:'Import',
-    // History modal
-    historyTitle:'History', noHistory:t('noHistory'),
-    setCol:'Set', weightCol:'Weight', repsCol:'Reps', tonnageCol:'Tonnage',
-    // Confirm modal
-    confirmBtn:'Confirm',
-    // Stats
-    statsTitle:'Performance', noData:'No data',
-    // PR
-    prTitle:'Personal Records', noPR:'No PRs recorded yet.',
-    // Intel
-    intelTitle:'Intel',
-    // Volume
-    volumeTitle:'Weekly Volume', byDay:'By Day', exerciseTables:'Exercise Tables',
-    configMuscles:t('configMuscles'), manageMuscles:t('manageMuscles'),
-    addExToDay:'+ Add Exercise to ',
-    muscleModalTitle:'Muscle Contributions', muscleModalNote:'Set how many sets each exercise contributes to each muscle group. Use decimals for indirect (e.g. 0.5 = half a set).',
-    manageMusclesTitle:'Muscle Groups', manageMusclesNote:'Add custom muscles or remove ones you don't need. Changes apply to this program only.',
-    newMusclePlaceholder:'e.g. Long Head Biceps', addMuscleBtn:'Add',
-    muscleAdded:' added!', muscleExists:'Already exists.', enterMuscle:'Enter a muscle name.',
-    muscleRemoveConfirm:'Remove "', muscleRemoveMsg:'This will also remove it from all exercise contributions in this program.',
-    muscleRemoved:' removed.',
-    muscleSaved:'Muscle contributions saved!',
-    // Volume table headers
-    muscleGroup:'Muscle Group', directSets:'Direct', indirectSets:'Indirect', totalSets:'Total',
-    muscleCol:'Muscle',
-    // Timer
-    restTimer:'Rest Timer', timerDone:'Done!',
-    // Toast messages
-    toastMaxWeeks:'Max 20 weeks.', toastMinWeeks:'Need at least 1 week.',
-    toastEnterProgName:'Enter a program name first.', toastProgNotFound:'Program not found.',
-    toastImported:'Imported ', toastImportedRecords:' records!', toastInvalidCSV:'Invalid CSV format.',
-    toastPasteFirst:'Paste CSV content first.',
-    // Search
-    searchPlaceholder:'Search exercises…',
-    // Settings
-    settingsTitle:'Settings', languageLabel:'Language',
-    // Delete program
-    deleteProgramConfirm:'Delete "', deleteProgramMsg:'This cannot be undone.',
-    noExercises:'No exercises yet.',
-  },
-  fr: {
-    navLog:'Journal', navStats:'Stats', navPR:'Records', navIntel:'Intel', navVolume:'Volume',
-    prog:'PROG',
-    week:'Semaine', addWeek:'Ajouter une semaine', removeWeek:'Retirer la dernière semaine',
-    maxWeeks:'Max 20 semaines.', minWeeks:'Il faut au moins 1 semaine.',
-    removeWeekConfirm:'Supprimer Semaine ', removeWeekMsg:'Les données restent dans l'historique.',
-    addDay:'+ Jour',
-    noWorkoutDays:'AUCUNE SÉANCE CONFIGURÉE', noWorkoutDaysSub:'Appuie sur + Jour pour commencer',
-    addExercise:'+ Ajouter un exercice à ', addSet:'+ Ajouter une série', fillLast:'↙ Recopier la dernière session',
-    history:'◴ Historique', syncedWith:'↕ synchronisé avec ', supersetWith:'✦ Superset avec : ',
-    rest:'REPOS', reps:'reps',
-    bwLabel:'Poids de corps', bwUnit:'kg',
-    notesPlaceholder:'Comment tu t'es senti ? Notes…', notesLabel:'NOTES DE SÉANCE',
-    editExercise:'Modifier l'exercice', addExerciseTitle:'Ajouter un exercice',
-    exName:'Nom de l'exercice', exNamePlaceholder:'ex : Curl pupitre',
-    repsTarget:'Reps cibles', restLabel:'Repos', machineSetup:'Réglage machine',
-    numSets:'Nombre de séries', restSecs:'Temps de repos (secondes)', restSecsPlaceholder:'ex : 180 pour 3 minutes',
-    syncWith:'Synchroniser avec', noSync:'— Aucune synchro —', syncNote:'La série 1 sera synchronisée entre les séances',
-    syncCurrently:'↕ Actuellement synchronisé avec : ',
-    groupSuperset:'+ Grouper en superset', editSuperset:'✦ Modifier le superset',
-    deleteEx:'Supprimer', cancelBtn:'Annuler', saveBtn:'Enregistrer',
-    renameDay:'Renommer la séance', addWorkoutDay:'Ajouter une séance',
-    dayNameLabel:'Nom de la séance', dayNamePlaceholder:'ex : Push, Pull, Legs…',
-    deleteDay:'Supprimer la séance',
-    changePeriod:'Changer la période', monthLabel:'Mois', yearLabel:'Année',
-    weeksLabel:'Semaines ce mois', applyBtn:'Appliquer',
-    programs:'Programmes', newProgramLabel:'Nom du nouveau programme', newProgramPlaceholder:'ex : Sèche Été',
-    createBtn:'Créer', closeBtn:'Fermer', activeLabel:'● ACTIF', tapLoad:'appuie sur Charger',
-    loadBtn:'Charger', delBtn:'Supp',
-    supersetTitle:'Superset', groupWith:'Grouper avec l'exercice', noneOption:'— Aucun —',
-    supersetNote:'Ces deux exercices seront regroupés visuellement.',
-    removeSuperset:'Retirer', supersetSave:'Enregistrer',
-    backupTitle:'Sauvegarde & Restauration', backupLabel:'Données de sauvegarde', copyClipboard:'Copier',
-    copied:'Copié !', restoreLabel:'Restaurer', restorePlaceholder:'Colle ta sauvegarde ici…',
-    restoreBtn:'Restaurer', restoreOk:'Restauration réussie !', restoreErr:'Données invalides.',
-    importCSVBtn:'Importer CSV',
-    importTitle:'Importer CSV', importLabel:'Coller le contenu CSV',
-    importPlaceholder:'Colle le contenu de ton fichier workout_log.csv ici…',
-    importNote:'Les données seront fusionnées. Rien ne sera supprimé.',
-    importBtn:'Importer',
-    historyTitle:'Historique', noHistory:'Aucune donnée enregistrée.',
-    setCol:'Série', weightCol:'Charge', repsCol:'Reps', tonnageCol:'Tonnage',
-    confirmBtn:'Confirmer',
-    statsTitle:'Performance', noData:'Pas de données',
-    prTitle:'Records Personnels', noPR:'Aucun record enregistré.',
-    intelTitle:'Intel',
-    volumeTitle:'Volume Hebdomadaire', byDay:'Par Séance', exerciseTables:'Tableaux d'exercices',
-    configMuscles:'⚙ Configurer les contributions musculaires', manageMuscles:'＋ Ajouter / Supprimer des muscles',
-    addExToDay:'+ Ajouter un exercice à ',
-    muscleModalTitle:'Contributions musculaires', muscleModalNote:'Définis combien de séries chaque exercice contribue à chaque groupe musculaire. Utilise des décimales pour l'indirect (ex : 0.5 = une demi-série).',
-    manageMusclesTitle:'Groupes musculaires', manageMusclesNote:'Ajoute des muscles personnalisés ou supprime ceux dont tu n'as pas besoin. Les changements s'appliquent à ce programme uniquement.',
-    newMusclePlaceholder:'ex : Long Biceps', addMuscleBtn:'Ajouter',
-    muscleAdded:' ajouté !', muscleExists:'Existe déjà.', enterMuscle:'Entre un nom de muscle.',
-    muscleRemoveConfirm:'Supprimer "', muscleRemoveMsg:'Cela supprimera aussi ce muscle de toutes les contributions dans ce programme.',
-    muscleRemoved:' supprimé.',
-    muscleSaved:'Contributions enregistrées !',
-    muscleGroup:'Groupe musculaire', directSets:'Direct', indirectSets:'Indirect', totalSets:'Total',
-    muscleCol:'Muscle',
-    restTimer:'Minuteur de repos', timerDone:'Terminé !',
-    toastMaxWeeks:'Max 20 semaines.', toastMinWeeks:'Il faut au moins 1 semaine.',
-    toastEnterProgName:'Entre un nom de programme.', toastProgNotFound:'Programme introuvable.',
-    toastImported:'Importé ', toastImportedRecords:' entrées !', toastInvalidCSV:'Format CSV invalide.',
-    toastPasteFirst:'Colle d'abord le contenu CSV.',
-    searchPlaceholder:'Rechercher des exercices…',
-    settingsTitle:'Paramètres', languageLabel:'Langue',
-    deleteProgramConfirm:'Supprimer "', deleteProgramMsg:'Cette action est irréversible.',
-    noExercises:'Aucun exercice.',
-  }
-};
-
-let currentLang = localStorage.getItem('wt_lang') || 'en';
-function t(key){ return (LANGS[currentLang]||LANGS.en)[key] || (LANGS.en)[key] || key; }
-function setLang(lang){
-  currentLang = lang;
-  localStorage.setItem('wt_lang', lang);
-  sv('wt_lang', lang);
-  applyLang();
-  render();
-  if(currentView==='volume') renderVolume();
-  if(currentView==='stats') renderStats();
-  if(currentView==='pr') renderPR();
-  if(currentView==='intel') renderIntel();
-}
-function applyLang(){
-  // Nav buttons
-  const navMap = {viewLog:'navLog',viewStats:'navStats',viewPR:'navPR',viewIntel:'navIntel',viewVolume:'navVolume'};
-  Object.entries(navMap).forEach(([id,key])=>{ const el=document.getElementById(id); if(el) el.textContent=t(key); });
-  // Inputs / textareas
-  const si = document.getElementById('searchInput'); if(si) si.placeholder = t('searchPlaceholder');
-  const sn = document.getElementById('sessionNotes'); if(sn) sn.placeholder = t('notesPlaceholder');
-  // Labels
-  const bl = document.getElementById('bwLabel'); if(bl) bl.textContent = t('bwLabel');
-  const bu = document.getElementById('bwUnitLabel'); if(bu) bu.textContent = t('bwUnit');
-  const nl = document.getElementById('notesLabel'); if(nl) nl.textContent = t('notesLabel');
-  // Modal titles (static HTML)
-  const modalTitles = {
-    backupModalTitle:'backupTitle', monthModalTitle:'changePeriod',
-    programsModalTitle:'programs', supersetModalTitle:'supersetTitle',
-    importModalTitle:'importTitle', muscleModalTitle:'muscleModalTitle',
-    manageMusclesTitle:'manageMusclesTitle'
-  };
-  Object.entries(modalTitles).forEach(([id,key])=>{ const el=document.getElementById(id); if(el) el.textContent=t(key); });
-}
-
 // ── SUPABASE CONFIG ──────────────────────────────────────────────────────────
 const SUPA_URL = 'https://denfusidgeqksdnrgiig.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlbmZ1c2lkZ2Vxa3NkbnJnaWlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5NTA3MzIsImV4cCI6MjA5MjUyNjczMn0.wGvDFwxybtx-gf7Prtrr1hORPb0QHBNWZBQI4JnLhBI';
@@ -1003,7 +804,7 @@ function renderSessionNav(){
   for(let s=1;s<=program.totalSessions;s++){
     const btn=document.createElement('button');
     btn.className='sess-btn'+(s===activeSession?' active':'');
-    btn.textContent=t('week')+' '+s;
+    btn.textContent='Week '+s;
     btn.onclick=()=>{activeSession=s;renderContent();renderSessionNav();};
     nav.appendChild(btn);
   }
@@ -1011,13 +812,13 @@ function renderSessionNav(){
 }
 
 function addWeek(){
-  if(program.totalSessions>=20){showToast(t('toastMaxWeeks'));return;}
+  if(program.totalSessions>=20){showToast('Max 20 weeks.');return;}
   program.totalSessions++;
   saveProgram();renderSessionNav();
 }
 function removeWeek(){
-  if(program.totalSessions<=1){showToast(t('toastMinWeeks'));return;}
-  showConfirm(t('removeWeekConfirm')+program.totalSessions+'?', t('removeWeekMsg'), ()=>{
+  if(program.totalSessions<=1){showToast('Need at least 1 week.');return;}
+  showConfirm('Remove Week '+program.totalSessions+'?', 'Logged data for that week will remain in history.', ()=>{
     program.totalSessions--;
     if(activeSession>program.totalSessions)activeSession=program.totalSessions;
     saveProgram();renderSessionNav();renderContent();
@@ -1036,7 +837,7 @@ function renderDayTabs(){
     editSpan.onclick=e=>{e.stopPropagation();openDayModal(day.id);};
     tabs.appendChild(btn);
   }
-  const addBtn=document.createElement('button');addBtn.className='add-day-tab';addBtn.textContent=t('addDay');addBtn.onclick=openAddDayModal;tabs.appendChild(addBtn);
+  const addBtn=document.createElement('button');addBtn.className='add-day-tab';addBtn.textContent='+ Day';addBtn.onclick=openAddDayModal;tabs.appendChild(addBtn);
 }
 
 function renderContent(){
@@ -1091,27 +892,27 @@ function renderContent(){
     };
     card.appendChild(hdr);
     const body=document.createElement('div');body.className='ex-body';
-    if(isShared){const note=document.createElement('div');note.className='sync-note';note.textContent=t('syncedWith')+sharedWith;body.appendChild(note);}
-    if(ex.supersetWith!=null){const ssNote=document.createElement('div');ssNote.className='superset-label';const partner=(program.exercises[activeDayId]||[])[ex.supersetWith];ssNote.textContent=t('supersetWith')+(partner?partner.name:'?');body.appendChild(ssNote);}
+    if(isShared){const note=document.createElement('div');note.className='sync-note';note.textContent=`↕ synced with ${sharedWith}`;body.appendChild(note);}
+    if(ex.supersetWith!=null){const ssNote=document.createElement('div');ssNote.className='superset-label';const partner=(program.exercises[activeDayId]||[])[ex.supersetWith];ssNote.textContent='✦ Superset with: '+(partner?partner.name:'?');body.appendChild(ssNote);}
     const tbl=document.createElement('table');tbl.className='sets-table';tbl.id=`tbl_${key}_${sess}`;
     const showPrev=true;
     tbl.innerHTML=`<tr><th>#</th><th class="th-prev">prev kg</th><th class="th-prev">prev rp</th><td class="prev-divider"></td><th>kg</th><th>reps</th><th>ton</th><th></th></tr>`;
     for(let s=0;s<ex.numSets;s++)tbl.appendChild(makeSetRow(key,sess,prevSess,prevMonthPrefix,s,isShared,exIdx));
     body.appendChild(tbl);
-    const addSetBtn=document.createElement('button');addSetBtn.className='add-set-btn';addSetBtn.textContent=t('addSet');
+    const addSetBtn=document.createElement('button');addSetBtn.className='add-set-btn';addSetBtn.textContent='+ Add set';
     addSetBtn.onclick=()=>addSet(activeDayId,exIdx,key,sess,prevSess,prevMonthPrefix,isShared);body.appendChild(addSetBtn);
     // Quick fill button
-    const qfBtn=document.createElement('button');qfBtn.className='quick-fill-btn';qfBtn.textContent=t('fillLast');
+    const qfBtn=document.createElement('button');qfBtn.className='quick-fill-btn';qfBtn.textContent='↙ Fill from last session';
     qfBtn.onclick=()=>quickFill(key,sess,prevSess,prevMonthPrefix,ex.numSets);body.appendChild(qfBtn);
     // History button
-    const histBtn=document.createElement('button');histBtn.className='quick-fill-btn';histBtn.style.marginLeft='6px';histBtn.textContent=t('history');
+    const histBtn=document.createElement('button');histBtn.className='quick-fill-btn';histBtn.style.marginLeft='6px';histBtn.textContent='◴ History';
     histBtn.onclick=()=>openHistory(ex.name,key,activeDayId,exIdx);body.appendChild(histBtn);
     card.appendChild(body);content.appendChild(card);
   });
   loadNotes();loadBw();
   const addExBtn=document.createElement('button');addExBtn.className='add-ex-btn';
   const dayLabel=program.days.find(d=>d.id===activeDayId) && program.days.find(function(d){return d.id===activeDayId;}) ? program.days.find(function(d){return d.id===activeDayId;}).label : 'Day';
-  addExBtn.textContent=t('addExercise')+dayLabel;addExBtn.onclick=()=>openAddModal(activeDayId);content.appendChild(addExBtn);
+  addExBtn.textContent=`+ Add exercise to ${dayLabel}`;addExBtn.onclick=()=>openAddModal(activeDayId);content.appendChild(addExBtn);
 }
 
 function makeSetRow(key,sess,prevSess,prevMonthPrefix,s,isShared,exIdx){
@@ -1161,7 +962,7 @@ function makeSetRow(key,sess,prevSess,prevMonthPrefix,s,isShared,exIdx){
   const tdDel=mkTd('del-set-cell');
   const delBtn=document.createElement('button');delBtn.className='del-set-btn';delBtn.textContent='×';
   delBtn.onclick=()=>removeSet(activeDayId,exIdx,key,sess,s);
-  const restBtn=document.createElement('button');restBtn.className='rest-btn';restBtn.title='Start rest timer';restBtn.textContent=t('rest');
+  const restBtn=document.createElement('button');restBtn.className='rest-btn';restBtn.title='Start rest timer';restBtn.textContent='REST';
   restBtn.onclick=e=>{e.stopPropagation();const ex=(program.exercises[activeDayId]||[])[exIdx];const secs=ex&&ex.restSecs?ex.restSecs:180;setTimer(secs);};
   tdDel.appendChild(delBtn);tdDel.appendChild(restBtn);
   [tdNum,tdPw,tdPr,tdDiv,tdWInput,tdRInput,tdTon,tdDel].forEach(td=>tr.appendChild(td));
@@ -1175,8 +976,8 @@ function addSet(sid,exIdx,key,sess,prevSess,prevMonthPrefix,isShared){program.ex
 function removeSet(sid,exIdx,key,sess,setIdx){if(program.exercises[sid][exIdx].numSets<=1)return;program.exercises[sid][exIdx].numSets--;saveProgram();if(currentView==='volume')renderVolume();sv(storKey(key,sess,setIdx,'weight'),'');sv(storKey(key,sess,setIdx,'reps'),'');renderContent();}
 
 let dayEditTarget=null;
-function openDayModal(id){dayEditTarget={id,isNew:false};const day=program.days.find(d=>d.id===id);document.getElementById('dayModalTitle').textContent=t('renameDay');document.getElementById('dayName').value=day && day.label||'';document.getElementById('dayDeleteBtn').style.display='';openModal('dayModal');}
-function openAddDayModal(){dayEditTarget={id:genId(),isNew:true};document.getElementById('dayModalTitle').textContent=t('addWorkoutDay');document.getElementById('dayName').value='';document.getElementById('dayDeleteBtn').style.display='none';openModal('dayModal');}
+function openDayModal(id){dayEditTarget={id,isNew:false};const day=program.days.find(d=>d.id===id);document.getElementById('dayModalTitle').textContent='Rename Day';document.getElementById('dayName').value=day && day.label||'';document.getElementById('dayDeleteBtn').style.display='';openModal('dayModal');}
+function openAddDayModal(){dayEditTarget={id:genId(),isNew:true};document.getElementById('dayModalTitle').textContent='Add Workout Day';document.getElementById('dayName').value='';document.getElementById('dayDeleteBtn').style.display='none';openModal('dayModal');}
 function saveDay(){const label=document.getElementById('dayName').value.trim()||'Day';const{id,isNew}=dayEditTarget;if(isNew){program.days.push({id,label});program.exercises[id]=[];activeDayId=id;}else{const day=program.days.find(d=>d.id===id);if(day)day.label=label;}saveProgram();closeModal('dayModal');render();}
 function deleteDay(){const{id}=dayEditTarget;if(program.days.length<=1){return;}program.days=program.days.filter(d=>d.id!==id);delete program.exercises[id];if(activeDayId===id)activeDayId=program.days[0].id;saveProgram();closeModal('dayModal');render();}
 
@@ -1184,7 +985,7 @@ let editTarget=null;
 function openEditModal(sid,exIdx){
   const ex=program.exercises[sid][exIdx];
   editTarget={sid,exIdx};
-  document.getElementById('editModalTitle').textContent=t('editExercise');
+  document.getElementById('editModalTitle').textContent='Edit Exercise';
   document.getElementById('editName').value=ex.name;
   document.getElementById('editReps').value=ex.setup.sets;
   document.getElementById('editRest').value=ex.setup.rest;
@@ -1204,7 +1005,7 @@ function openEditModal(sid,exIdx){
     }
   }
   const curEx=program.exercises[sid][exIdx];
-  ssBtn.textContent=curEx&&curEx.supersetWith!=null?t('editSuperset'):t('groupSuperset');
+  ssBtn.textContent=curEx&&curEx.supersetWith!=null?'✦ Edit Superset':'+ Group as Superset';
   ssBtn.onclick=()=>{closeModal('editModal');openSupersetModal(sid,exIdx);};
   // Populate sync dropdown
   const sel=document.getElementById('syncTarget');
@@ -1231,7 +1032,7 @@ function openEditModal(sid,exIdx){
         if(other.syncKey===ex.syncKey) partners.push((program.days.find(d=>d.id===dsid)||{}).label+' → '+other.name);
       });
     }
-    if(partners.length>0){infoEl.textContent=t('syncCurrently')+partners.join(', ');infoEl.style.display='';}
+    if(partners.length>0){infoEl.textContent='↕ Currently synced with: '+partners.join(', ');infoEl.style.display='';}
     else{infoEl.style.display='none';}
     sel.value=ex.syncKey;
   } else {
@@ -1240,7 +1041,7 @@ function openEditModal(sid,exIdx){
   }
   openModal('editModal');
 }
-function openAddModal(sid){editTarget={sid,exIdx:-1};document.getElementById('editModalTitle').textContent=t('addExerciseTitle');document.getElementById('editName').value='';document.getElementById('editReps').value='10';document.getElementById('editRest').value="3'";document.getElementById('editMachine').value='0';document.getElementById('editSets').value='2';document.getElementById('editDeleteBtn').style.display='none';openModal('editModal');}
+function openAddModal(sid){editTarget={sid,exIdx:-1};document.getElementById('editModalTitle').textContent='Add Exercise';document.getElementById('editName').value='';document.getElementById('editReps').value='10';document.getElementById('editRest').value="3'";document.getElementById('editMachine').value='0';document.getElementById('editSets').value='2';document.getElementById('editDeleteBtn').style.display='none';openModal('editModal');}
 function saveExercise(){
   const{sid,exIdx}=editTarget;
   const name=document.getElementById('editName').value.trim()||'Unnamed';
@@ -1420,7 +1221,7 @@ function renderStats(){
       const canvas=document.createElement('canvas');canvas.style.width='100%';
       card.appendChild(canvas);grid.appendChild(card);
       if(hasData) drawChartOnCanvas(canvas,labels,values);
-      else{const msg=document.createElement('div');msg.style.cssText='font-size:10px;color:#444;padding:10px 0;';msg.textContent=t('noData');card.appendChild(msg);}
+      else{const msg=document.createElement('div');msg.style.cssText='font-size:10px;color:#444;padding:10px 0;';msg.textContent='No data';card.appendChild(msg);}
     });
     return;
   }
@@ -1525,11 +1326,11 @@ function copyBackup(){
   try{
     document.execCommand('copy');
     // Visual feedback
-    const btn=event.target;btn.textContent=t('copied');
-    setTimeout(()=>btn.textContent=t('copyClipboard'),2000);
+    const btn=event.target;btn.textContent='Copied!';
+    setTimeout(()=>btn.textContent='Copy to Clipboard',2000);
   }catch(e){
     // On mobile, try clipboard API
-    if(navigator.clipboard){navigator.clipboard.writeText(el.value).then(function(){var btn=event.target;btn.textContent=t('copied');setTimeout(function(){btn.textContent=t('copyClipboard');},2000);}).catch(function(){alert('Please manually select all text and copy.');});}else{alert('Please manually select all text and copy.');}
+    if(navigator.clipboard){navigator.clipboard.writeText(el.value).then(function(){var btn=event.target;btn.textContent='Copied!';setTimeout(function(){btn.textContent='Copy to Clipboard';},2000);}).catch(function(){alert('Please manually select all text and copy.');});}else{alert('Please manually select all text and copy.');}
   }
 }
 
@@ -1547,9 +1348,9 @@ function restoreBackup(){
     program=loadProgram();
     closeModal('backupModal');
     render();
-    showToast(t('restoreOk'));
+    showToast('Restore successful!');
   }catch(e){
-    showToast(t('restoreErr'));
+    showToast('Invalid backup data.');
   }
 }
 
@@ -1575,7 +1376,7 @@ function setTimer(secs){
     if(timerRemaining<=0){
       clearInterval(timerInterval);
       timerRunning=false;
-      document.getElementById('timerDisplay').textContent=t('timerDone');
+      document.getElementById('timerDisplay').textContent='Done!';
       document.getElementById('timerProgress').style.width='100%';
       // Vibrate if supported
       if(navigator.vibrate) navigator.vibrate([200,100,200]);
@@ -2138,13 +1939,13 @@ function renderProgramList(){
     const nameDiv=document.createElement('div');nameDiv.className='program-list-name';nameDiv.textContent=p.name;
     const metaDiv=document.createElement('div');metaDiv.className='program-list-meta';
     metaDiv.style.color=isActive?'var(--accent)':'var(--muted2)';
-    metaDiv.textContent=isActive?t('activeLabel'):t('tapLoad');
+    metaDiv.textContent=isActive?'● ACTIVE':'tap Load to switch';
     infoDiv.appendChild(nameDiv);infoDiv.appendChild(metaDiv);div.appendChild(infoDiv);
     const btnWrap=document.createElement('div');btnWrap.style.cssText='display:flex;gap:6px;align-items:center;';div.appendChild(btnWrap);
     if(!isActive){
       const loadBtn = document.createElement('button');
       loadBtn.className = 'timer-btn';
-      loadBtn.textContent = t('loadBtn');
+      loadBtn.textContent = 'Load';
       loadBtn.onclick = () => pgSwitch(p.id);
       btnWrap.appendChild(loadBtn);
     }
@@ -2158,8 +1959,8 @@ function renderProgramList(){
     delBtn.className = 'timer-btn';
     delBtn.style.color = 'var(--red)';
     delBtn.style.borderColor = 'rgba(248,113,113,.3)';
-    delBtn.textContent = t('delBtn');
-    delBtn.onclick = () => { showConfirm(t('deleteProgramConfirm') + p.name + '"?', t('deleteProgramMsg'), ()=>pgDelete(p.id)); };
+    delBtn.textContent = 'Del';
+    delBtn.onclick = () => { showConfirm('Delete "' + p.name + '"?', 'This cannot be undone.', ()=>pgDelete(p.id)); };
     btnWrap.appendChild(delBtn);
     el.appendChild(div);
   });
@@ -2193,7 +1994,7 @@ function blankProgram(){
 
 function createProgram(){
   const name = document.getElementById('newProgramName').value.trim();
-  if(!name){ showToast(t('toastEnterProgName')); return; }
+  if(!name){ showToast('Enter a program name first.'); return; }
 
   // Save current program into list first
   const list = pgSnapshot();
@@ -2224,7 +2025,7 @@ function pgSwitch(id){
 
   const list = pgLoad();
   const target = list.find(p => p.id === id);
-  if(!target){ showToast(t('toastProgNotFound')); return; }
+  if(!target){ showToast('Program not found.'); return; }
 
   localStorage.setItem('wt_active_prog_id', id);
   localStorage.setItem('wt_program', JSON.stringify(target.data));
@@ -2293,9 +2094,9 @@ function renderBwChart(){
 // ── IMPORT CSV ───────────────────────────────────────────────────────────────
 function importCSV(){
   const text=document.getElementById('importText').value.trim();
-  if(!text){showToast(t('toastPasteFirst'));return;}
+  if(!text){showToast('Paste CSV content first.');return;}
   const lines=text.split('\n').filter(l=>l.trim());
-  if(lines.length<2){showToast(t('toastInvalidCSV'));return;}
+  if(lines.length<2){showToast('Invalid CSV format.');return;}
   // Skip header row
   let imported=0;
   for(let i=1;i<lines.length;i++){
@@ -2326,7 +2127,7 @@ function importCSV(){
     imported++;
   }
   closeModal('importModal');
-  showToast(t('toastImported')+imported+t('toastImportedRecords'));
+  showToast('Imported '+imported+' records!');
 }
 
 // Add import button to backup modal
@@ -2351,22 +2152,6 @@ function maybeRenderBwChart(){
   card.style.display=(statsMode==='year'||statsMode==='month')?'block':'none';
   if(card.firstChild) card.firstChild.textContent='Bodyweight · '+statsYear;
   renderBwChart();
-}
-
-function openSettingsModal(){
-  // Update active lang button styles
-  const active = 'border:1px solid var(--accent);background:var(--accent-dim);color:var(--accent);';
-  const inactive = 'border:1px solid var(--border2);background:transparent;color:var(--muted3);';
-  const enBtn = document.getElementById('langBtnEn');
-  const frBtn = document.getElementById('langBtnFr');
-  if(enBtn) enBtn.style.cssText = enBtn.style.cssText.replace(/border:.*?;background:.*?;color:.*?;/g,'') + (currentLang==='en'?active:inactive);
-  if(frBtn) frBtn.style.cssText = frBtn.style.cssText.replace(/border:.*?;background:.*?;color:.*?;/g,'') + (currentLang==='fr'?active:inactive);
-  // Translate modal title
-  const title = document.getElementById('settingsModalTitle');
-  if(title) title.textContent = t('settingsTitle');
-  const ll = document.getElementById('langLabel');
-  if(ll) ll.textContent = t('languageLabel');
-  openModal('settingsModal');
 }
 
 function showConfirm(title, msg, onOk){
@@ -2446,9 +2231,9 @@ function renderVolume(){
   let html = '';
 
   // Volume summary table
-  html += `<div class="vol-section-title">${t('volumeTitle')} — ` + (program.days||[]).map(d=>d.label).join(' + ') + '</div>';
+  html += '<div class="vol-section-title">Weekly Volume — ' + (program.days||[]).map(d=>d.label).join(' + ') + '</div>';
   html += '<table class="vol-table">';
-  html += `<thead><tr><th>${t('muscleGroup')}</th><th class="num">${t('directSets')}</th><th class="num">${t('indirectSets')}</th><th class="num">${t('totalSets')}</th></tr></thead><tbody>`;
+  html += '<thead><tr><th>Muscle Group</th><th class="num">Direct</th><th class="num">Indirect</th><th class="num">Total</th></tr></thead><tbody>';
   rows.forEach(r => {
     const hasVol = r.total > 0;
     html += `<tr>
@@ -2461,7 +2246,7 @@ function renderVolume(){
   html += '</tbody></table>';
 
   // Per-day breakdown
-  html += `<div class="vol-section-title">${t('byDay')}</div>`;
+  html += '<div class="vol-section-title">By Day</div>';
   (program.days||[]).forEach(day => {
     const exList = program.exercises[day.id] || [];
     if(!exList.length) return;
@@ -2483,7 +2268,7 @@ function renderVolume(){
 
     html += `<div style="font-size:10px;letter-spacing:1px;color:var(--accent);text-transform:uppercase;margin-bottom:6px;margin-top:10px;">${day.label}</div>`;
     html += '<table class="vol-table">';
-    html += `<thead><tr><th>${t('muscleCol')}</th><th class="num">${t('directSets')}</th><th class="num">${t('indirectSets')}</th><th class="num">${t('totalSets')}</th></tr></thead><tbody>`;
+    html += '<thead><tr><th>Muscle</th><th class="num">Direct</th><th class="num">Indirect</th><th class="num">Total</th></tr></thead><tbody>';
     dayRows.forEach(m => {
       const d = Math.round(dayTotals[m].direct*10)/10;
       const i = Math.round(dayTotals[m].indirect*10)/10;
@@ -2499,7 +2284,7 @@ function renderVolume(){
   });
 
   // ── Exercise Tables per Day ───────────────────────────────────────────────
-  html += `<div class="vol-section-title" style="margin-top:20px;">${t('exerciseTables')}</div>`;
+  html += '<div class="vol-section-title" style="margin-top:20px;">Exercise Tables</div>';
 
   (program.days||[]).forEach(day => {
     const exList = program.exercises[day.id] || [];
@@ -2507,7 +2292,7 @@ function renderVolume(){
     html += `<div style="font-size:10px;letter-spacing:1.5px;color:var(--accent);text-transform:uppercase;margin-bottom:8px;">${day.label}</div>`;
 
     if(!exList.length){
-      html += `<div style="font-size:11px;color:var(--muted2);padding:8px 0;">${t('noExercises')}</div>`;
+      html += `<div style="font-size:11px;color:var(--muted2);padding:8px 0;">No exercises yet.</div>`;
     } else {
       html += `<table class="vol-table"><thead><tr>
         <th style="width:24px;"></th>
@@ -2550,7 +2335,7 @@ function renderVolume(){
 
       html += `</tbody></table>`;
     }
-    html += `<button class="vol-config-btn" style="margin-top:6px;margin-bottom:4px;" onclick="openAddModal('${day.id}');_volAddTarget='${day.id}';">` + t('addExToDay') + `${day.label}</button>`;
+    html += `<button class="vol-config-btn" style="margin-top:6px;margin-bottom:4px;" onclick="openAddModal('${day.id}');_volAddTarget='${day.id}';">+ Add Exercise to ${day.label}</button>`;
     html += `</div>`;
   });
 
@@ -2583,21 +2368,21 @@ function renderManageMusclesList(){
 function addMuscleGroup(){
   const inp = document.getElementById('newMuscleName');
   const name = inp.value.trim();
-  if(!name){ showToast(t('enterMuscle')); return; }
+  if(!name){ showToast('Enter a muscle name.'); return; }
   const muscles = getMuscleGroups();
-  if(muscles.find(m => m.toLowerCase() === name.toLowerCase())){ showToast(t('muscleExists')); return; }
+  if(muscles.find(m => m.toLowerCase() === name.toLowerCase())){ showToast('Already exists.'); return; }
   muscles.push(name);
   program.muscleGroups = muscles;
   saveProgram();
   inp.value = '';
   renderManageMusclesList();
-  showToast(name+t('muscleAdded'));
+  showToast(name + ' added!');
 }
 
 function removeMuscleGroup(idx){
   const muscles = getMuscleGroups();
   const name = muscles[idx];
-  showConfirm(t('muscleRemoveConfirm') + name + '"?', t('muscleRemoveMsg'), () => {
+  showConfirm('Remove "' + name + '"?', 'This will also remove it from all exercise contributions in this program.', () => {
     muscles.splice(idx, 1);
     program.muscleGroups = muscles;
     // Clean up contributions
@@ -2609,7 +2394,7 @@ function removeMuscleGroup(idx){
     saveProgram();
     renderManageMusclesList();
     if(currentView==='volume') renderVolume();
-    showToast(name+t('muscleRemoved'));
+    showToast(name + ' removed.');
   });
 }
 
@@ -2689,7 +2474,7 @@ function saveMuscleContributions(){
   saveProgram();
   closeModal('muscleModal');
   renderVolume();
-  showToast(t('muscleSaved'));
+  showToast('Muscle contributions saved!');
 }
 
 // ── STARTUP ──────────────────────────────────────────────────────────────────
@@ -2721,9 +2506,7 @@ async function init(){
 
   pgSnapshot();
   pgUpdateBtn(pgGetName());
-  currentLang = localStorage.getItem('wt_lang') || 'en';
   render();
-  applyLang();
 }
 
 init();
@@ -2734,7 +2517,7 @@ init();
 <div class="modal-overlay" id="programModal">
   <div class="modal">
     <button class="modal-close" onclick="closeModal('programModal')">✕</button>
-    <div class="modal-title" id="programsModalTitle">Programs</div>
+    <div class="modal-title">Programs</div>
     <div id="programList"></div>
     <div class="divider"></div>
     <div class="form-group">
@@ -2753,7 +2536,7 @@ init();
 <div class="modal-overlay" id="supersetModal">
   <div class="modal">
     <button class="modal-close" onclick="closeModal('supersetModal')">✕</button>
-    <div class="modal-title" id="supersetModalTitle">Superset</div>
+    <div class="modal-title">Superset</div>
     <div class="form-group">
       <label class="form-label">Group with exercise</label>
       <select class="form-input" id="supersetTarget"></select>
@@ -2772,7 +2555,7 @@ init();
 <div class="modal-overlay" id="importModal">
   <div class="modal">
     <button class="modal-close" onclick="closeModal('importModal')">✕</button>
-    <div class="modal-title" id="importModalTitle">Import CSV</div>
+    <div class="modal-title">Import CSV</div>
     <div class="form-group">
       <label class="form-label">Paste CSV content</label>
       <textarea class="form-input" id="importText" rows="8" style="resize:none;font-size:10px;" placeholder="Paste the content of your workout_log.csv here…"></textarea>
@@ -2801,27 +2584,6 @@ init();
     <div class="modal-actions" style="margin-top:14px;">
       <button class="btn-secondary" onclick="closeModal('muscleModal')">Close</button>
       <button class="btn-primary" onclick="saveMuscleContributions()">Save</button>
-    </div>
-  </div>
-</div>
-
-<!-- SETTINGS MODAL -->
-<div class="modal-overlay" id="settingsModal">
-  <div class="modal">
-    <button class="modal-close" onclick="closeModal('settingsModal')">✕</button>
-    <div class="modal-title" id="settingsModalTitle">Settings</div>
-    <div class="form-group">
-      <label class="form-label" id="langLabel">Language</label>
-      <div style="display:flex;gap:8px;margin-top:4px;">
-        <button id="langBtnEn" onclick="setLang('en')"
-          style="flex:1;padding:10px;border-radius:2px;font-family:var(--font-mono);font-size:11px;letter-spacing:1px;cursor:pointer;transition:all .15s;border:1px solid var(--border2);background:transparent;color:var(--muted3);">
-          🇬🇧 English
-        </button>
-        <button id="langBtnFr" onclick="setLang('fr')"
-          style="flex:1;padding:10px;border-radius:2px;font-family:var(--font-mono);font-size:11px;letter-spacing:1px;cursor:pointer;transition:all .15s;border:1px solid var(--border2);background:transparent;color:var(--muted3);">
-          🇫🇷 Français
-        </button>
-      </div>
     </div>
   </div>
 </div>
