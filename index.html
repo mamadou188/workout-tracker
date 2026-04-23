@@ -1084,8 +1084,9 @@ function saveExercise(){
     }
   }
   saveProgram();closeModal('editModal');render();
+  if(currentView==='volume') renderVolume();
 }
-function deleteExercise(){const{sid,exIdx}=editTarget;program.exercises[sid].splice(exIdx,1);saveProgram();closeModal('editModal');render();}
+function deleteExercise(){const{sid,exIdx}=editTarget;program.exercises[sid].splice(exIdx,1);saveProgram();closeModal('editModal');render();if(currentView==='volume')renderVolume();}
 
 function openMonthModal(){document.getElementById('selMonth').value=program.month;document.getElementById('selYear').value=program.year;document.getElementById('selSessions').value=program.totalSessions;openModal('monthModal');}
 function applyMonth(){program.month=parseInt(document.getElementById('selMonth').value);program.year=parseInt(document.getElementById('selYear').value);program.totalSessions=Math.max(1,parseInt(document.getElementById('selSessions').value));if(activeSession>program.totalSessions)activeSession=1;saveProgram();closeModal('monthModal');render();}
@@ -2334,6 +2335,7 @@ function renderVolume(){
 
       html += `</tbody></table>`;
     }
+    html += `<button class="vol-config-btn" style="margin-top:6px;margin-bottom:4px;" onclick="openAddModal('${day.id}');_volAddTarget='${day.id}';">+ Add Exercise to ${day.label}</button>`;
     html += `</div>`;
   });
 
@@ -2417,6 +2419,7 @@ function volSetSets(sid, exIdx, val){
 
 // ── MUSCLE MODAL ─────────────────────────────────────────────────────────────
 let _muscleEdits = {}; // { 'dayId_exIdx_muscle': value }
+let _volAddTarget = null; // track which day triggered add from volume tab
 
 function openMuscleModal(){
   _muscleEdits = {};
