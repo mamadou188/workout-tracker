@@ -769,6 +769,31 @@ function renderSessionNav(){
     btn.onclick=()=>{activeSession=s;renderContent();renderSessionNav();};
     nav.appendChild(btn);
   }
+  // — Week buttons
+  const delBtn=document.createElement('button');
+  delBtn.className='sess-btn';
+  delBtn.style.cssText='color:var(--red);min-width:32px;padding:9px 10px;flex:0;';
+  delBtn.title='Remove last week';
+  delBtn.textContent='−';
+  delBtn.onclick=()=>{
+    if(program.totalSessions<=1){showToast('Need at least 1 week.');return;}
+    if(!confirm('Remove Week '+program.totalSessions+'? Logged data for that week will remain but the tab will be gone.'))return;
+    program.totalSessions--;
+    if(activeSession>program.totalSessions)activeSession=program.totalSessions;
+    saveProgram();renderSessionNav();renderContent();
+  };
+  const addBtn=document.createElement('button');
+  addBtn.className='sess-btn';
+  addBtn.style.cssText='color:var(--accent);min-width:32px;padding:9px 10px;flex:0;';
+  addBtn.title='Add a week';
+  addBtn.textContent='+';
+  addBtn.onclick=()=>{
+    if(program.totalSessions>=20){showToast('Max 20 weeks.');return;}
+    program.totalSessions++;
+    saveProgram();renderSessionNav();
+  };
+  nav.appendChild(delBtn);
+  nav.appendChild(addBtn);
 }
 
 function renderDayTabs(){
