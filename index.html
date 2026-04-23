@@ -305,6 +305,35 @@ border-radius:3px;margin-bottom:6px;}
 .bw-chart-card{background:var(–card);border:1px solid var(–border);border-radius:3px;
 padding:14px 10px 10px;margin-bottom:12px;}
 
+/* VOLUME TABLE */
+.vol-panel{padding:14px 14px 60px;}
+.vol-panel.visible{display:block;}
+.vol-section-title{font-size:10px;letter-spacing:2px;color:var(--muted3);text-transform:uppercase;margin-bottom:10px;margin-top:16px;}
+.vol-table{width:100%;border-collapse:collapse;margin-bottom:18px;}
+.vol-table th{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--muted2);font-weight:400;padding:5px 8px;text-align:left;border-bottom:1px solid var(--border);}
+.vol-table th.num{text-align:right;}
+.vol-table td{font-size:11px;padding:6px 8px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle;}
+.vol-table td.num{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted3);}
+.vol-table td.num.accent{color:var(--accent);font-weight:500;}
+.vol-table td.muscle{color:var(--text);}
+.vol-table tr:last-child td{border-bottom:none;}
+.vol-table tr:hover td{background:var(--card);}
+.vol-config-btn{width:100%;margin-top:4px;padding:10px;background:none;border:1px dashed var(--border2);
+  border-radius:3px;color:var(--muted2);font-family:var(--font-mono);font-size:10px;
+  letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;transition:all .15s;}
+.vol-config-btn:hover{border-color:var(--accent);color:var(--accent);}
+.muscle-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);}
+.muscle-row:last-child{border-bottom:none;}
+.muscle-label{flex:1;font-size:11px;color:var(--text);}
+.muscle-input{width:58px;background:var(--surface);border:1px solid var(--border);border-radius:2px;
+  color:var(--text);font-family:var(--font-mono);font-size:12px;padding:4px 7px;text-align:center;
+  -webkit-appearance:none;-moz-appearance:textfield;}
+.muscle-input:focus{outline:none;border-color:var(--accent);}
+.muscle-input::-webkit-outer-spin-button,.muscle-input::-webkit-inner-spin-button{-webkit-appearance:none;}
+.muscle-fraction{font-size:9px;color:var(--muted2);white-space:nowrap;}
+.vol-ex-header{font-size:10px;letter-spacing:1px;color:var(--accent);text-transform:uppercase;
+  padding:10px 0 6px;border-bottom:1px solid var(--border2);margin-bottom:2px;}
+.vol-day-label{font-size:9px;color:var(--muted2);margin-bottom:6px;}
 /* TOAST */
 #toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
 background:var(–card);border:1px solid var(–border2);border-radius:3px;
@@ -330,6 +359,7 @@ white-space:nowrap;}
   <button class="view-btn" id="viewStats" onclick="switchView('stats')">Stats</button>
   <button class="view-btn" id="viewPR" onclick="switchView('pr')">PR</button>
   <button class="view-btn" id="viewIntel" onclick="switchView('intel')">Intel</button>
+  <button class="view-btn" id="viewVolume" onclick="switchView('volume')">Volume</button>
   <button class="view-btn" id="viewSearch" onclick="toggleSearch()">🔍</button>
 </div>
 
@@ -942,8 +972,8 @@ function makeSetRow(key,sess,prevSess,prevMonthPrefix,s,isShared,exIdx){
 function refreshTon(key,sess,s){const w=(document.getElementById(`inp_${key}_${sess}_${s}_weight`)||{}).value;const r=(document.getElementById(`inp_${key}_${sess}_${s}_reps`)||{}).value;const t=document.getElementById(`ton_${key}_${sess}_${s}`);if(t)t.textContent=ton(w,r);}
 function commitInput(e,isShared){const{key,sess,s,f}=e.target.dataset;sv(storKey(key,sess,s,f),e.target.value);if(isShared)e.target.classList.toggle('synced-input',!!e.target.value);refreshTon(key,sess,s);}
 
-function addSet(sid,exIdx,key,sess,prevSess,prevMonthPrefix,isShared){program.exercises[sid][exIdx].numSets++;saveProgram();const s=program.exercises[sid][exIdx].numSets-1;const tbl=document.getElementById(`tbl_${key}_${sess}`);if(tbl)tbl.appendChild(makeSetRow(key,sess,prevSess,prevMonthPrefix,s,isShared,exIdx));}
-function removeSet(sid,exIdx,key,sess,setIdx){if(program.exercises[sid][exIdx].numSets<=1)return;program.exercises[sid][exIdx].numSets--;saveProgram();sv(storKey(key,sess,setIdx,'weight'),'');sv(storKey(key,sess,setIdx,'reps'),'');renderContent();}
+function addSet(sid,exIdx,key,sess,prevSess,prevMonthPrefix,isShared){program.exercises[sid][exIdx].numSets++;saveProgram();if(currentView==='volume')renderVolume();const s=program.exercises[sid][exIdx].numSets-1;const tbl=document.getElementById(`tbl_${key}_${sess}`);if(tbl)tbl.appendChild(makeSetRow(key,sess,prevSess,prevMonthPrefix,s,isShared,exIdx));}
+function removeSet(sid,exIdx,key,sess,setIdx){if(program.exercises[sid][exIdx].numSets<=1)return;program.exercises[sid][exIdx].numSets--;saveProgram();if(currentView==='volume')renderVolume();sv(storKey(key,sess,setIdx,'weight'),'');sv(storKey(key,sess,setIdx,'reps'),'');renderContent();}
 
 let dayEditTarget=null;
 function openDayModal(id){dayEditTarget={id,isNew:false};const day=program.days.find(d=>d.id===id);document.getElementById('dayModalTitle').textContent='Rename Day';document.getElementById('dayName').value=day && day.label||'';document.getElementById('dayDeleteBtn').style.display='';openModal('dayModal');}
@@ -1105,7 +1135,7 @@ function shiftStatsMonth(delta){
 
 function switchView(v){
   currentView=v;
-  ['log','stats','pr','intel','search'].forEach(id=>{
+  ['log','stats','pr','intel','volume','search'].forEach(id=>{
     const btn=document.getElementById('view'+id.charAt(0).toUpperCase()+id.slice(1));
     if(btn) btn.classList.toggle('active',id===v);
   });
@@ -1118,6 +1148,7 @@ function switchView(v){
   document.getElementById('statsPanel').style.display=v==='stats'?'block':'none';
   document.getElementById('prPanel').style.display=v==='pr'?'block':'none';
   document.getElementById('intelPanel').style.display=v==='intel'?'block':'none';
+  document.getElementById('volumePanel').style.display=v==='volume'?'block':'none';
   if(v==='stats'){
     statsYear=program.year;statsMonth=program.month;
     document.getElementById('statsMonthLabel').textContent=SHORT_MONTHS[statsMonth]+' '+statsYear;
@@ -1125,6 +1156,7 @@ function switchView(v){
   }
   if(v==='pr') renderPR();
   if(v==='intel') renderIntel();
+  if(v==='volume') renderVolume();
 }
 
 function populateStatsSelects(){
@@ -2141,6 +2173,307 @@ if('serviceWorker' in navigator){
   navigator.serviceWorker.register('./sw.js').catch(()=>{});
 }
 
+// ── VOLUME / MUSCLE TRACKING ────────────────────────────────────────────────
+
+const DEFAULT_MUSCLES = [
+  'Chest','Back','Quads','Hams','Glutes','Biceps','Triceps',
+  'S Delts','F Delts','R Delts','Abs','Calf'
+];
+
+// Muscle list is stored per-program so each program can have its own muscles
+function getMuscleGroups(){
+  if(!program.muscleGroups || !program.muscleGroups.length){
+    program.muscleGroups = [...DEFAULT_MUSCLES];
+  }
+  return program.muscleGroups;
+}
+
+// Get muscle contributions for an exercise. Returns {muscle: sets, ...}
+function getMuscleContribs(ex){
+  return ex.muscleContributions || {};
+}
+
+// Compute volume table for the current program
+// Returns array of {muscle, direct, indirect, total}
+function computeVolumeTable(){
+  const totals = {};
+  getMuscleGroups().forEach(m => totals[m] = {direct:0, indirect:0});
+
+  for(const [sid, exList] of Object.entries(program.exercises||{})){
+    (exList||[]).forEach(ex => {
+      const contribs = getMuscleContribs(ex);
+      const sets = ex.numSets || 1;
+      for(const [muscle, fraction] of Object.entries(contribs)){
+        if(!totals[muscle]) totals[muscle] = {direct:0, indirect:0};
+        const contribution = parseFloat(fraction) * sets;
+        if(parseFloat(fraction) >= 1){
+          totals[muscle].direct += contribution;
+        } else if(parseFloat(fraction) > 0){
+          totals[muscle].indirect += contribution;
+        }
+      }
+    });
+  }
+
+  return getMuscleGroups().map(m => ({
+    muscle: m,
+    direct: Math.round(totals[m].direct * 10) / 10,
+    indirect: Math.round(totals[m].indirect * 10) / 10,
+    total: Math.round((totals[m].direct + totals[m].indirect) * 10) / 10
+  })).filter(r => r.total > 0 || true); // show all
+}
+
+function renderVolume(){
+  const panel = document.getElementById('volumePanel');
+  const rows = computeVolumeTable();
+
+  let html = '';
+
+  // Volume summary table
+  html += '<div class="vol-section-title">Weekly Volume — ' + (program.days||[]).map(d=>d.label).join(' + ') + '</div>';
+  html += '<table class="vol-table">';
+  html += '<thead><tr><th>Muscle Group</th><th class="num">Direct</th><th class="num">Indirect</th><th class="num">Total</th></tr></thead><tbody>';
+  rows.forEach(r => {
+    const hasVol = r.total > 0;
+    html += `<tr>
+      <td class="muscle">${r.muscle}</td>
+      <td class="num${r.direct>0?' accent':''}">${r.direct > 0 ? r.direct : '—'}</td>
+      <td class="num">${r.indirect > 0 ? r.indirect : '—'}</td>
+      <td class="num${hasVol?' accent':''}">${hasVol ? r.total : '—'}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+
+  // Per-day breakdown
+  html += '<div class="vol-section-title">By Day</div>';
+  (program.days||[]).forEach(day => {
+    const exList = program.exercises[day.id] || [];
+    if(!exList.length) return;
+
+    const dayTotals = {};
+    getMuscleGroups().forEach(m => dayTotals[m] = {direct:0, indirect:0});
+    exList.forEach(ex => {
+      const contribs = getMuscleContribs(ex);
+      const sets = ex.numSets || 1;
+      for(const [muscle, fraction] of Object.entries(contribs)){
+        if(!dayTotals[muscle]) dayTotals[muscle] = {direct:0, indirect:0};
+        const c = parseFloat(fraction) * sets;
+        if(parseFloat(fraction) >= 1) dayTotals[muscle].direct += c;
+        else if(parseFloat(fraction) > 0) dayTotals[muscle].indirect += c;
+      }
+    });
+    const dayRows = getMuscleGroups().filter(m => dayTotals[m].direct + dayTotals[m].indirect > 0);
+    if(!dayRows.length) return;
+
+    html += `<div style="font-size:10px;letter-spacing:1px;color:var(--accent);text-transform:uppercase;margin-bottom:6px;margin-top:10px;">${day.label}</div>`;
+    html += '<table class="vol-table">';
+    html += '<thead><tr><th>Muscle</th><th class="num">Direct</th><th class="num">Indirect</th><th class="num">Total</th></tr></thead><tbody>';
+    dayRows.forEach(m => {
+      const d = Math.round(dayTotals[m].direct*10)/10;
+      const i = Math.round(dayTotals[m].indirect*10)/10;
+      const t = Math.round((d+i)*10)/10;
+      html += `<tr>
+        <td class="muscle">${m}</td>
+        <td class="num${d>0?' accent':''}">${d>0?d:'—'}</td>
+        <td class="num">${i>0?i:'—'}</td>
+        <td class="num accent">${t}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+  });
+
+  // ── Exercise Tables per Day ───────────────────────────────────────────────
+  html += '<div class="vol-section-title" style="margin-top:20px;">Exercise Tables</div>';
+
+  (program.days||[]).forEach(day => {
+    const exList = program.exercises[day.id] || [];
+    html += `<div style="margin-bottom:18px;">`;
+    html += `<div style="font-size:10px;letter-spacing:1.5px;color:var(--accent);text-transform:uppercase;margin-bottom:8px;">${day.label}</div>`;
+
+    if(!exList.length){
+      html += `<div style="font-size:11px;color:var(--muted2);padding:8px 0;">No exercises yet.</div>`;
+    } else {
+      html += `<table class="vol-table"><thead><tr>
+        <th style="width:24px;"></th>
+        <th>Exercise</th>
+        <th class="num">Sets</th>
+        <th>Muscles</th>
+      </tr></thead><tbody>`;
+
+      exList.forEach((ex, exIdx) => {
+        const contribs = getMuscleContribs(ex);
+        const muscleStr = Object.entries(contribs)
+          .filter(([m,v]) => parseFloat(v) > 0)
+          .map(([m,v]) => `${m} ×${v}`)
+          .join(', ') || '<span style="color:var(--muted)">—</span>';
+
+        const upDisabled = exIdx === 0 ? 'opacity:.3;pointer-events:none;' : '';
+        const dnDisabled = exIdx === exList.length-1 ? 'opacity:.3;pointer-events:none;' : '';
+
+        html += `<tr>
+          <td style="padding:4px 2px;">
+            <div style="display:flex;flex-direction:column;gap:1px;">
+              <button onclick="volReorder('${day.id}',${exIdx},${exIdx-1})"
+                style="background:none;border:none;color:var(--accent);font-size:11px;cursor:pointer;padding:0;line-height:1.2;${upDisabled}">▲</button>
+              <button onclick="volReorder('${day.id}',${exIdx},${exIdx+1})"
+                style="background:none;border:none;color:var(--accent);font-size:11px;cursor:pointer;padding:0;line-height:1.2;${dnDisabled}">▼</button>
+            </div>
+          </td>
+          <td style="font-size:11px;">${ex.name}</td>
+          <td class="num accent" style="padding:2px 4px;">
+            <input type="number" min="1" max="20"
+              value="${ex.numSets}"
+              style="width:42px;background:var(--surface);border:1px solid var(--border);border-radius:2px;color:var(--accent);font-family:var(--font-mono);font-size:12px;padding:3px 5px;text-align:center;-webkit-appearance:none;-moz-appearance:textfield;"
+              oninput="this.value=this.value.replace(/[^0-9]/,'')"
+              onchange="volSetSets('${day.id}',${exIdx},this.value)"
+              onblur="volSetSets('${day.id}',${exIdx},this.value)"/>
+          </td>
+          <td style="font-size:10px;color:var(--muted3);line-height:1.5;">${muscleStr}</td>
+        </tr>`;
+      });
+
+      html += `</tbody></table>`;
+    }
+    html += `</div>`;
+  });
+
+  html += '<button class="vol-config-btn" onclick="openMuscleModal()">⚙ Configure Muscle Contributions</button>';
+  html += '<button class="vol-config-btn" style="margin-top:6px;" onclick="openManageMusclesModal()">＋ Add / Remove Muscles</button>';
+  panel.innerHTML = html;
+}
+
+function openManageMusclesModal(){
+  renderManageMusclesList();
+  openModal('manageMusclesModal');
+}
+
+function renderManageMusclesList(){
+  const muscles = getMuscleGroups();
+  const el = document.getElementById('manageMusclesList');
+  if(!muscles.length){
+    el.innerHTML = '<div style="font-size:11px;color:var(--muted2);padding:8px 0;">No muscles yet. Add one below.</div>';
+    return;
+  }
+  el.innerHTML = muscles.map((m, i) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);">
+      <span style="flex:1;font-size:12px;color:var(--text);">${m}</span>
+      <button onclick="removeMuscleGroup(${i})"
+        style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;padding:2px 6px;line-height:1;">×</button>
+    </div>
+  `).join('');
+}
+
+function addMuscleGroup(){
+  const inp = document.getElementById('newMuscleName');
+  const name = inp.value.trim();
+  if(!name){ showToast('Enter a muscle name.'); return; }
+  const muscles = getMuscleGroups();
+  if(muscles.find(m => m.toLowerCase() === name.toLowerCase())){ showToast('Already exists.'); return; }
+  muscles.push(name);
+  program.muscleGroups = muscles;
+  saveProgram();
+  inp.value = '';
+  renderManageMusclesList();
+  showToast(name + ' added!');
+}
+
+function removeMuscleGroup(idx){
+  const muscles = getMuscleGroups();
+  const name = muscles[idx];
+  showConfirm('Remove "' + name + '"?', 'This will also remove it from all exercise contributions in this program.', () => {
+    muscles.splice(idx, 1);
+    program.muscleGroups = muscles;
+    // Clean up contributions
+    for(const exList of Object.values(program.exercises||{})){
+      for(const ex of exList){
+        if(ex.muscleContributions) delete ex.muscleContributions[name];
+      }
+    }
+    saveProgram();
+    renderManageMusclesList();
+    if(currentView==='volume') renderVolume();
+    showToast(name + ' removed.');
+  });
+}
+
+function volReorder(sid, fromIdx, toIdx){
+  const list = program.exercises[sid];
+  if(!list || toIdx < 0 || toIdx >= list.length) return;
+  const item = list.splice(fromIdx, 1)[0];
+  list.splice(toIdx, 0, item);
+  saveProgram();
+  renderVolume();
+}
+
+function volSetSets(sid, exIdx, val){
+  const n = Math.max(1, Math.min(20, parseInt(val)||1));
+  const ex = (program.exercises[sid]||[])[exIdx];
+  if(!ex || ex.numSets === n) return;
+  ex.numSets = n;
+  saveProgram();
+  // Update the volume summary without full re-render (just recompute the tables)
+  renderVolume();
+}
+
+// ── MUSCLE MODAL ─────────────────────────────────────────────────────────────
+let _muscleEdits = {}; // { 'dayId_exIdx_muscle': value }
+
+function openMuscleModal(){
+  _muscleEdits = {};
+  const body = document.getElementById('muscleModalBody');
+  let html = '';
+
+  (program.days||[]).forEach(day => {
+    const exList = program.exercises[day.id] || [];
+    if(!exList.length) return;
+    html += `<div style="font-size:10px;letter-spacing:1.5px;color:var(--accent);text-transform:uppercase;padding:10px 0 4px;border-bottom:1px solid var(--border2);margin-bottom:8px;">${day.label}</div>`;
+    exList.forEach((ex, exIdx) => {
+      const contribs = getMuscleContribs(ex);
+      html += `<div style="margin-bottom:14px;">`;
+      html += `<div style="font-size:11px;color:var(--text);font-weight:500;margin-bottom:6px;">${ex.name} <span style="font-size:9px;color:var(--muted2);">(${ex.numSets} sets)</span></div>`;
+      html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;">`;
+      getMuscleGroups().forEach(m => {
+        const key = day.id + '__' + exIdx + '__' + m;
+        const val = contribs[m] !== undefined ? contribs[m] : '';
+        html += `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;">
+          <span style="flex:1;font-size:10px;color:var(--muted3);">${m}</span>
+          <input class="muscle-input" type="number" step="0.25" min="0" max="10"
+            id="mc_${key.replace(/__/g,'_')}" data-key="${key}"
+            value="${val}" placeholder="0"/>
+        </div>`;
+      });
+      html += `</div></div>`;
+    });
+  });
+
+  body.innerHTML = html;
+  openModal('muscleModal');
+}
+
+function saveMuscleContributions(){
+  const inputs = document.querySelectorAll('#muscleModalBody .muscle-input');
+  inputs.forEach(inp => {
+    const key = inp.dataset.key; // dayId__exIdx__muscle
+    const parts = key.split('__');
+    const dayId = parts[0];
+    const exIdx = parseInt(parts[1]);
+    const muscle = parts[2];
+    const val = parseFloat(inp.value);
+    const ex = (program.exercises[dayId]||[])[exIdx];
+    if(!ex) return;
+    if(!ex.muscleContributions) ex.muscleContributions = {};
+    if(!isNaN(val) && val > 0){
+      ex.muscleContributions[muscle] = val;
+    } else {
+      delete ex.muscleContributions[muscle];
+    }
+  });
+  saveProgram();
+  closeModal('muscleModal');
+  renderVolume();
+  showToast('Muscle contributions saved!');
+}
+
 // ── STARTUP ──────────────────────────────────────────────────────────────────
 async function init(){
   // Show loading state
@@ -2228,6 +2561,44 @@ init();
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeModal('importModal')">Cancel</button>
       <button class="btn-primary" onclick="importCSV()">Import</button>
+    </div>
+  </div>
+</div>
+
+<!-- VOLUME PANEL -->
+<div id="volumePanel" style="display:none;" class="vol-panel"></div>
+
+<!-- MUSCLE CONFIG MODAL -->
+<div class="modal-overlay" id="muscleModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('muscleModal')">✕</button>
+    <div class="modal-title" id="muscleModalTitle">Muscle Contributions</div>
+    <div style="font-size:10px;color:var(--muted2);margin-bottom:12px;letter-spacing:.5px;">
+      Set how many sets each exercise contributes to each muscle group.<br>
+      Use decimals for indirect (e.g. 0.5 = half a set).
+    </div>
+    <div id="muscleModalBody" style="max-height:60vh;overflow-y:auto;"></div>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="btn-secondary" onclick="closeModal('muscleModal')">Close</button>
+      <button class="btn-primary" onclick="saveMuscleContributions()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- MANAGE MUSCLES MODAL -->
+<div class="modal-overlay" id="manageMusclesModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('manageMusclesModal')">✕</button>
+    <div class="modal-title">Muscle Groups</div>
+    <div style="font-size:10px;color:var(--muted2);margin-bottom:12px;letter-spacing:.5px;">
+      Add custom muscles or remove ones you don't need.<br>
+      Changes apply to this program only.
+    </div>
+    <div id="manageMusclesList" style="margin-bottom:12px;"></div>
+    <div style="display:flex;gap:8px;margin-top:4px;">
+      <input class="form-input" type="text" id="newMuscleName" placeholder="e.g. Long Head Biceps"
+        style="flex:1;" onkeydown="if(event.key==='Enter')addMuscleGroup()"/>
+      <button class="btn-primary" style="flex:0;padding:8px 14px;" onclick="addMuscleGroup()">Add</button>
     </div>
   </div>
 </div>
