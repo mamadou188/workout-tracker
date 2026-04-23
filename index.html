@@ -333,11 +333,11 @@ white-space:nowrap;}
   <button class="view-btn" id="viewSearch" onclick="toggleSearch()">🔍</button>
 </div>
 
-<div style="display:flex;align-items:stretch;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:92px;z-index:200;">
+<div style="display:flex;align-items:stretch;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:92px;z-index:200;min-height:38px;">
   <div class="session-nav" id="sessionNav" style="flex:1;border-bottom:none;position:static;"></div>
-  <div style="display:flex;align-items:center;gap:0;border-left:1px solid var(--border);flex-shrink:0;">
-    <button onclick="removeWeek()" title="Remove last week" style="width:36px;height:100%;border:none;background:transparent;color:var(--red);font-size:18px;font-weight:700;cursor:pointer;font-family:var(--font-mono);transition:background .15s;" onmouseover="this.style.background='rgba(248,113,113,.1)'" onmouseout="this.style.background='transparent'">−</button>
-    <button onclick="addWeek()" title="Add a week" style="width:36px;height:100%;border:none;border-left:1px solid var(--border);background:transparent;color:var(--accent);font-size:18px;font-weight:700;cursor:pointer;font-family:var(--font-mono);transition:background .15s;" onmouseover="this.style.background='var(--accent-dim)'" onmouseout="this.style.background='transparent'">+</button>
+  <div style="display:flex;align-items:stretch;border-left:1px solid var(--border);flex-shrink:0;">
+    <button onclick="removeWeek()" title="Remove last week" style="width:38px;border:none;background:transparent;color:var(--red);font-size:20px;font-weight:700;cursor:pointer;font-family:var(--font-mono);padding:0;display:flex;align-items:center;justify-content:center;">−</button>
+    <button onclick="addWeek()" title="Add a week" style="width:38px;border:none;border-left:1px solid var(--border);background:transparent;color:var(--accent);font-size:20px;font-weight:700;cursor:pointer;font-family:var(--font-mono);padding:0;display:flex;align-items:center;justify-content:center;">+</button>
   </div>
 </div>
 <div class="day-tabs" id="dayTabs"></div>
@@ -788,10 +788,11 @@ function addWeek(){
 }
 function removeWeek(){
   if(program.totalSessions<=1){showToast('Need at least 1 week.');return;}
-  if(!confirm('Remove Week '+program.totalSessions+'? Logged data for that week will remain in history.'))return;
-  program.totalSessions--;
-  if(activeSession>program.totalSessions)activeSession=program.totalSessions;
-  saveProgram();renderSessionNav();renderContent();
+  showConfirm('Remove Week '+program.totalSessions+'?', 'Logged data for that week will remain in history.', ()=>{
+    program.totalSessions--;
+    if(activeSession>program.totalSessions)activeSession=program.totalSessions;
+    saveProgram();renderSessionNav();renderContent();
+  });
 }
 
 function renderDayTabs(){
@@ -1926,7 +1927,7 @@ function renderProgramList(){
     delBtn.style.color = 'var(--red)';
     delBtn.style.borderColor = 'rgba(248,113,113,.3)';
     delBtn.textContent = 'Del';
-    delBtn.onclick = () => { if(confirm('Delete "' + p.name + '"? This cannot be undone.')) pgDelete(p.id); };
+    delBtn.onclick = () => { showConfirm('Delete "' + p.name + '"?', 'This cannot be undone.', ()=>pgDelete(p.id)); };
     btnWrap.appendChild(delBtn);
     el.appendChild(div);
   });
@@ -2120,6 +2121,14 @@ function maybeRenderBwChart(){
   renderBwChart();
 }
 
+function showConfirm(title, msg, onOk){
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMsg').textContent = msg;
+  const btn = document.getElementById('confirmOkBtn');
+  btn.onclick = () => { closeModal('confirmModal'); onOk(); };
+  openModal('confirmModal');
+}
+
 function showToast(msg){
   const t=document.getElementById('toast');
   if(!t)return;
@@ -2224,5 +2233,17 @@ init();
 </div>
 
 <div id="toast"></div>
+
+<!-- CONFIRM MODAL -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal" style="padding:24px 18px 28px;">
+    <div class="modal-title" id="confirmTitle" style="font-size:15px;margin-bottom:8px;"></div>
+    <div id="confirmMsg" style="font-size:11px;color:var(--muted2);letter-spacing:.5px;margin-bottom:20px;"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('confirmModal')">Cancel</button>
+      <button class="btn-danger" id="confirmOkBtn">Confirm</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
