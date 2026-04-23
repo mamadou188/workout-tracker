@@ -1,7 +1,7 @@
 {
-  "name": "Workout Tracker",
-  "short_name": "Workout Log",
-  "description": "Personal training log book",
+  "name": "Workout Log",
+  "short_name": "Workout",
+  "description": "Personal workout tracker",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#080808",
