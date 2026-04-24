@@ -1567,59 +1567,135 @@ function renderPR(){
   const list=document.getElementById('prList');
   list.innerHTML='';
   const SHORT=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const records=[];
 
+  // Collect all exercises (deduplicated by key)
+  const seen=new Set();
+  const exercises=[];
   for(const [sid,exList] of Object.entries(program.exercises||{})){
     const dayLabel=(program.days.find(d=>d.id===sid)||{}).label||sid;
     exList.forEach((ex,exIdx)=>{
       const key=ex.syncKey?ex.syncKey:`${sid}_${exIdx}`;
-      let bestVal=null,bestMonth='';
-      // Scan all localStorage keys for this exercise
-      for(let i=0;i<localStorage.length;i++){
-        const k=localStorage.key(i);
-        if(!k.startsWith('wt_')||!k.endsWith('_s0_weight')||!k.includes('_'+key+'_sess')) continue;
-        const parts=k.split('_');
-        if(parts.length<6) continue;
-        const yr=parts[1],mo=parts[2];
-        const sessMatch=k.match(/_sess(\d+)_s0_weight$/);
-        if(!sessMatch) continue;
-        const m=[k,yr,mo,sessMatch[1]];
-        if(true){
-          const w=parseFloat(localStorage.getItem(k));
-          const rk=k.replace('_weight','_reps');
-          const r=parseFloat(localStorage.getItem(rk));
-          if(w>0&&r>0){
-            const ton=w*r;
-            if(bestVal===null||ton>bestVal){
-              bestVal=ton;
-              bestMonth=SHORT[parseInt(m[2])-1]+' '+m[1];
-            }
-          }
-        }
-      }
-      if(bestVal!==null) records.push({name:ex.name,day:dayLabel,val:bestVal,month:bestMonth,key});
+      if(seen.has(key)) return;
+      seen.add(key);
+      exercises.push({name:ex.name,day:dayLabel,key,ex,sid});
     });
   }
 
-  // Deduplicate by key (synced exercises appear in multiple days)
-  const seen=new Set();
-  const unique=records.filter(r=>{if(seen.has(r.key))return false;seen.add(r.key);return true;});
-  unique.sort((a,b)=>b.val-a.val);
+  // Sort exercises alphabetically
+  exercises.sort((a,b)=>a.name.localeCompare(b.name));
 
-  if(unique.length===0){
-    list.innerHTML='<div style="text-align:center;padding:40px;font-size:11px;color:var(--muted2);">No data yet</div>';
-    return;
-  }
-
-  unique.forEach((r,i)=>{
-    list.innerHTML+=`<div class="pr-card">
-      <div class="pr-gold">${i===0?'🥇':i===1?'🥈':i===2?'🥉':'·'}</div>
-      <div class="pr-name">${r.name}<div class="pr-meta">${r.day} · ${r.month}</div></div>
-      <div style="text-align:right"><div class="pr-val">${r.val.toFixed(1)}</div><div class="pr-meta">kg×reps</div></div>
-    </div>`;
+  // Group by first letter
+  const groups={};
+  exercises.forEach(ex=>{
+    const letter=ex.name[0].toUpperCase();
+    if(!groups[letter]) groups[letter]=[];
+    groups[letter].push(ex);
   });
 
-  // Export CSV button
+  let anyData=false;
+
+  Object.keys(groups).sort().forEach(letter=>{
+    let groupHtml='';
+    groups[letter].forEach(({name,day,key})=>{
+      // Collect ALL history entries for this exercise across all months
+      const history=[];
+      for(let i=0;i<localStorage.length;i++){
+        const k=localStorage.key(i);
+        if(!k.startsWith('wt_')||!k.endsWith('_s0_weight')||!k.includes('_'+key+'_sess')) continue;
+        const sessMatch=k.match(/^wt_(\d{4})_(\d{2})_.*_sess(\d+)_s0_weight$/);
+        if(!sessMatch) continue;
+        const yr=sessMatch[1],mo=sessMatch[2],sess=sessMatch[3];
+        const w=parseFloat(localStorage.getItem(k));
+        const rk=k.replace('_weight','_reps');
+        const r=parseFloat(localStorage.getItem(rk));
+        if(w>0&&r>0){
+          history.push({
+            yr,mo,sess,w,r,
+            ton:w*r,
+            label:SHORT[parseInt(mo)-1]+' '+yr+' W'+sess
+          });
+        }
+      }
+      if(!history.length) return;
+      anyData=true;
+
+      // Sort by date desc
+      history.sort((a,b)=>{
+        const da=parseInt(a.yr)*100+parseInt(a.mo);
+        const db=parseInt(b.yr)*100+parseInt(b.mo);
+        if(db!==da) return db-da;
+        return parseInt(b.sess)-parseInt(a.sess);
+      });
+
+      // Find overall PR
+      const pr=history.reduce((best,h)=>h.ton>best.ton?h:best, history[0]);
+      const uid='prh_'+key.replace(/[^a-z0-9]/gi,'_');
+
+      groupHtml+=`
+      <div class="pr-ex-card">
+        <table class="pr-ex-top">
+          <tr>
+            <td class="pr-trophy">🏆</td>
+            <td class="pr-info">
+              <div class="pr-ex-name">${name}</div>
+              <table class="pr-ex-sub"><tr>
+                <td><span class="pr-ex-day-pill">${day}</span></td>
+                <td><span class="pr-ex-date">${pr.label}</span></td>
+              </tr></table>
+              <div class="pr-ex-perf">${pr.w}&thinsp;kg &times; ${pr.r}&thinsp;reps</div>
+            </td>
+            <td class="pr-right">
+              <span class="pr-ton-val">${pr.ton.toFixed(1)}</span>
+              <span class="pr-ton-unit">KG&times;REPS</span>
+            </td>
+          </tr>
+        </table>
+        <table class="pr-expand-btn" id="btn_${uid}" onclick="
+          const wrap=document.getElementById('${uid}');
+          const btn=document.getElementById('btn_${uid}');
+          const open=wrap.style.display==='block';
+          wrap.style.display=open?'none':'block';
+          btn.querySelector('.pr-expand-icon').textContent=open?'▶':'▼';
+          btn.querySelector('.pr-expand-label').textContent=open?'SHOW HISTORY (${history.length})':'HIDE HISTORY';
+        "><tr>
+          <td class="pr-expand-icon">▶</td>
+          <td class="pr-expand-label">SHOW HISTORY (${history.length})</td>
+        </tr></table>
+        <div class="pr-history-wrap" id="${uid}">
+          <table class="pr-history-table">
+            <thead><tr>
+              <th>Period</th>
+              <th class="r">Weight</th>
+              <th class="r">Reps</th>
+              <th class="r">Tonnage</th>
+            </tr></thead>
+            <tbody>
+              ${history.map(h=>{
+                const isPR=h.ton===pr.ton;
+                return `<tr class="${isPR?'pr-row':''}">
+                  <td>${h.label}</td>
+                  <td class="r">${h.w}&thinsp;kg</td>
+                  <td class="r">${h.r}</td>
+                  <td class="r ${isPR?'best':''}">${h.ton.toFixed(1)}${isPR?'<span class="pr-star">★</span>':''}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+    });
+
+    if(groupHtml){
+      list.innerHTML+=`
+        <div class="pr-letter-divider">${letter}</div>
+        ${groupHtml}`;
+    }
+  });
+
+  if(!anyData){
+    list.innerHTML='<div style="text-align:center;padding:40px;font-size:11px;color:var(--muted2);">No data recorded yet.</div>';
+  }
+
   list.innerHTML+=`<button class="export-btn" onclick="exportCSV()">⬇ Export all data as CSV</button>`;
 }
 
