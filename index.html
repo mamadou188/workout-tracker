@@ -586,6 +586,10 @@ white-space:nowrap;}
         <option value="">— No sync —</option>
       </select>
       <div style="font-size:9px;color:#666;margin-top:5px;letter-spacing:.5px;">Values of set 1 will sync across sessions</div>
+      <button id="removeSyncBtn" onclick="removeSyncKey()" class="btn-secondary"
+        style="display:none;margin-top:8px;width:100%;color:var(--red);border-color:rgba(248,113,113,.3);">
+        ✕ Remove Sync
+      </button>
     </div>
     <div class="divider"></div>
     <div class="modal-actions">
@@ -1023,8 +1027,8 @@ function openEditModal(sid,exIdx){
   }
   // Show current sync
   const infoEl=document.getElementById('currentSyncInfo');
+  const removeSyncBtn=document.getElementById('removeSyncBtn');
   if(ex.syncKey){
-    // find what it's synced with
     const partners=[];
     for(const[dsid,list] of Object.entries(program.exercises)){
       if(dsid===sid) continue;
@@ -1035,9 +1039,11 @@ function openEditModal(sid,exIdx){
     if(partners.length>0){infoEl.textContent='↕ Currently synced with: '+partners.join(', ');infoEl.style.display='';}
     else{infoEl.style.display='none';}
     sel.value=ex.syncKey;
+    if(removeSyncBtn) removeSyncBtn.style.display='';
   } else {
     infoEl.style.display='none';
     sel.value='';
+    if(removeSyncBtn) removeSyncBtn.style.display='none';
   }
   openModal('editModal');
 }
@@ -1121,15 +1127,25 @@ function saveExercise(){
 }
 
 function removeSyncKey(){
-  // Explicitly unlink sync — called only from a dedicated button, not silently
   if(!editTarget) return;
   const{sid,exIdx}=editTarget;
   const ex=program.exercises[sid][exIdx];
   if(!ex||!ex.syncKey) return;
-  // The data stays under the syncKey — just detach this exercise from it
-  ex.syncKey=null;
-  saveProgram();
-  showToast('Sync removed. Data preserved under old key.');
+  showConfirm('Remove sync?', 'Data logged under the shared key will remain accessible. The exercise will track its own data going forward.', ()=>{
+    // Assign a new stable individual key and migrate data
+    const newKey='ex_'+Math.random().toString(36).slice(2,10);
+    migrateExKey(ex.syncKey, newKey);
+    ex.syncKey=newKey;
+    saveProgram();
+    // Update modal UI
+    const infoEl=document.getElementById('currentSyncInfo');
+    const removeSyncBtn=document.getElementById('removeSyncBtn');
+    const sel=document.getElementById('syncTarget');
+    if(infoEl) infoEl.style.display='none';
+    if(removeSyncBtn) removeSyncBtn.style.display='none';
+    if(sel) sel.value='';
+    showToast('Sync removed.');
+  });
 }
 function deleteExercise(){
   const{sid,exIdx}=editTarget;
